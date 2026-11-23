@@ -1,18 +1,12 @@
-import { useId, useState, type FormEvent } from 'react'
-import {
-  maxPromptLength, providerIds, providers, type ProviderId,
-  type PromptRequest, type PromptResponse, type WorkflowStatus,
-} from '@nexus/contracts'
-
-const projects = [
-  { id: 'personal', name: 'Personal', note: 'A workspace for questions and early ideas.' },
-  { id: 'nexus', name: 'Nexus prototype', note: 'Explore ideas for the Nexus app.' },
-] as const
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { providerIds, providers, type ChatView, type Project, type SessionInfo } from '@nexus/contracts'
+import { api, ApiError } from './api'
+import { Conversation } from './Conversation'
+import { SignIn } from './SignIn'
 
 const themes = { obsidian: 'Obsidian', parchment: 'Parchment' } as const
 type Theme = keyof typeof themes
-type View = ProviderId | 'compare' | 'settings'
-type Turn = PromptResponse & { prompt: string }
+type View = ChatView | 'settings'
 
 function readTheme(): Theme {
   try {
@@ -22,130 +16,60 @@ function readTheme(): Theme {
   }
 }
 
-async function requestReplies(input: PromptRequest): Promise<PromptResponse> {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-    signal: AbortSignal.timeout(15_000),
-  })
-  if (!response.ok) throw new Error('Nexus could not get a reply. Try again.')
-  return response.json()
-}
-
-function Conversation({ view }: { view: ProviderId | 'compare' }) {
-  const headingId = useId()
-  const promptId = useId()
-  const compare = view === 'compare'
-  const [selected, setSelected] = useState<ProviderId[]>(['gpt', 'claude'])
-  const [consent, setConsent] = useState(false)
-  const [prompt, setPrompt] = useState('')
-  const [turns, setTurns] = useState<Turn[]>([])
-  const [status, setStatus] = useState<WorkflowStatus>('planned')
-  const [pending, setPending] = useState('')
+function Dashboard({ session, theme, onTheme, onLogout }: {
+  session: SessionInfo; theme: Theme; onTheme: (theme: Theme) => void; onLogout: () => void
+}) {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectId, setProjectId] = useState('')
+  const [view, setView] = useState<View>('gpt')
+  const [newProject, setNewProject] = useState('')
   const [error, setError] = useState('')
-  const running = status === 'running'
+  const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const project = projects.find((item) => item.id === projectId)
 
-  async function send(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (running || !prompt.trim() || (compare && (selected.length < 2 || !consent))) return
-    setPending(prompt.trim())
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true)
     setError('')
-    setStatus('running')
     try {
-      const result = await requestReplies({ prompt, providers: compare ? selected : [view], consent })
-      setTurns((previous) => [...previous, { prompt: prompt.trim(), ...result }])
-      setPrompt('')
-      setConsent(false)
-      setStatus('succeeded')
-    } catch {
-      setError('Nexus could not get a reply. Check your connection and try again.')
-      setStatus('failed')
+      const items = await api<Project[]>('/projects', undefined, signal)
+      setProjects(items)
+      setProjectId(items[0]?.id ?? '')
+    } catch (error) {
+      if (!signal?.aborted) setError(error instanceof Error ? error.message : 'Could not load projects.')
     } finally {
-      setPending('')
+      if (!signal?.aborted) setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void load(controller.signal)
+    return () => controller.abort()
+  }, [load])
+
+  async function createProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy || !newProject.trim()) return
+    setBusy(true)
+    setError('')
+    try {
+      const item = await api<Project>('/projects', { name: newProject })
+      setProjects((previous) => [...previous, item])
+      setProjectId(item.id)
+      setNewProject('')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not create a project.')
+    } finally {
+      setBusy(false)
     }
   }
 
-  return (
-    <section className="conversation" aria-labelledby={headingId}>
-      <header className="conversation-heading">
-        <div>
-          <h2 id={headingId}>{compare ? 'Collaboration workspace' : `Chat with ${providers[view].name}`}</h2>
-          <p>{compare ? 'Compare independent mock replies to the same prompt.' : `${providers[view].vendor} · ${providers[view].name} mock adapter`}</p>
-        </div>
-        <span className="status" data-status={status} role="status">
-          {compare && selected.length >= 2 && !consent && status === 'planned' ? 'waiting for approval' : status}
-        </span>
-      </header>
-      <div className="transcript" role="log" aria-label="Conversation">
-        {turns.length === 0 && !pending && <p className="empty">Enter a prompt to start.</p>}
-        {turns.map((turn, index) => (
-          <article className="turn" key={index}>
-            <div className="prompt"><strong>You</strong><p>{turn.prompt}</p></div>
-            <div className="replies">
-              {turn.replies.map((reply) => (
-                <div className="reply" key={reply.provider}>
-                  <strong>{providers[reply.provider].name}</strong> <small>{reply.mode === 'mock' ? 'Mock reply' : 'Live reply'}</small>
-                  <p>{reply.text}</p>
-                </div>
-              ))}
-            </div>
-          </article>
-        ))}
-        {pending && <div className="prompt"><strong>You</strong><p>{pending}</p></div>}
-      </div>
-      <form onSubmit={send}>
-        {compare && <fieldset disabled={running}>
-          <legend>Providers</legend>
-          <div className="choices">
-            {providerIds.map((id) => (
-              <label key={id}>
-                <input type="checkbox" checked={selected.includes(id)} onChange={(event) => {
-                  setSelected(event.target.checked ? [...selected, id] : selected.filter((item) => item !== id))
-                  setConsent(false)
-                  setStatus('planned')
-                }} />
-                {providers[id].name}
-              </label>
-            ))}
-          </div>
-          <label className="consent">
-            <input type="checkbox" checked={consent} disabled={selected.length < 2}
-              onChange={(event) => { setConsent(event.target.checked); setStatus('planned') }} />
-            Send this prompt to the selected mock adapters
-          </label>
-          {selected.length < 2 && <p>Select at least two providers to compare.</p>}
-        </fieldset>}
-        <label htmlFor={promptId}>Prompt</label>
-        <textarea id={promptId} rows={3} value={prompt} maxLength={maxPromptLength} disabled={running}
-          placeholder="Write a message…" required onChange={(event) => {
-            setError('')
-            setPrompt(event.target.value)
-            setConsent(false)
-            setStatus('planned')
-          }} />
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" className="primary" disabled={running || !prompt.trim() || (compare && (selected.length < 2 || !consent))}>
-          {running ? 'Sending…' : compare ? 'Compare replies' : 'Send prompt'}
-        </button>
-      </form>
-    </section>
-  )
-}
-
-export function App() {
-  const [projectId, setProjectId] = useState<string>(projects[0].id)
-  const [view, setView] = useState<View>('gpt')
-  const [theme, setTheme] = useState<Theme>(readTheme)
-  const [visited, setVisited] = useState<string[]>([`${projects[0].id}:gpt`])
-  const project = projects.find((item) => item.id === projectId) ?? projects[0]
-  const activeKey = `${project.id}:${view}`
-
-  function open(nextProject: string, nextView: View) {
-    setProjectId(nextProject)
-    setView(nextView)
-    const key = `${nextProject}:${nextView}`
-    if (nextView !== 'settings') setVisited((previous) => previous.includes(key) ? previous : [...previous, key])
+  async function logout() {
+    try { await api('/logout', {}); onLogout() }
+    catch (error) {
+      if (!(error instanceof ApiError && error.status === 401)) setError('Could not sign out. Try again.')
+    }
   }
 
   return (
@@ -153,57 +77,98 @@ export function App() {
       <a href="#workspace" className="skip">Skip to workspace</a>
       <header className="top">
         <a className="brand" href="/" aria-label="Nexus home"><span aria-hidden="true">N</span> NEXUS</a>
-        <span className="mode">Mock mode</span>
+        <span className="mode">{session.gptMode === 'live' ? 'GPT live' : 'Mock mode'}</span>
         <div className="avatar" title="Owner avatar placeholder" aria-label="Owner avatar placeholder" role="img">DP</div>
       </header>
       <div className="layout">
         <aside>
           <div className="project-select">
             <label htmlFor="project">Project</label>
-            <select id="project" value={projectId} onChange={(event) => open(event.target.value, view)}>
+            <select id="project" value={projectId} disabled={loading || !projects.length} onChange={(event) => setProjectId(event.target.value)}>
               {projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </div>
+          <form className="new-project" onSubmit={createProject}>
+            <label htmlFor="new-project">New project</label>
+            <input id="new-project" value={newProject} onChange={(event) => setNewProject(event.target.value)} maxLength={80} />
+            <button type="submit" className="secondary" disabled={busy || loading || !newProject.trim()}>Add project</button>
+          </form>
           <nav aria-label="Workspace views">
             {providerIds.map((id) => (
-              <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => open(projectId, id)}>
+              <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => setView(id)}>
                 <span className="provider-mark" data-provider={id} aria-hidden="true">{providers[id].name[0]}</span>
                 {providers[id].name}
               </button>
             ))}
-            <button aria-current={view === 'compare' ? 'page' : undefined} onClick={() => open(projectId, 'compare')}>Compare</button>
-            <button aria-current={view === 'settings' ? 'page' : undefined} onClick={() => open(projectId, 'settings')}>Settings</button>
+            <button aria-current={view === 'compare' ? 'page' : undefined} onClick={() => setView('compare')}>Compare</button>
+            <button aria-current={view === 'settings' ? 'page' : undefined} onClick={() => setView('settings')}>Settings</button>
           </nav>
         </aside>
         <main id="workspace" tabIndex={-1}>
           <div className="project-header">
-            <div><h1>{project.name}</h1><p>{project.note}</p></div>
+            <h1>{project?.name ?? 'Workspace'}</h1>
             <span className="mascot" role="img" aria-label="Hydra artwork placeholder">Hydra artwork placeholder</span>
           </div>
+          {loading && <p role="status">Loading projects…</p>}
+          {error && <p role="alert">{error}</p>}
+          {error && !loading && !projects.length && <button type="button" onClick={() => void load()}>Retry loading projects</button>}
           {view === 'settings' && (
             <section className="conversation" aria-labelledby="settings-title">
               <h2 id="settings-title">Settings</h2>
               <label htmlFor="theme">Theme</label>
               <select id="theme" value={theme} onChange={(event) => {
                 const next = event.target.value === 'parchment' ? 'parchment' : 'obsidian'
-                setTheme(next)
-                try { localStorage.setItem('nexus-theme', next) } catch { /* Apply the theme for this session. */ }
+                onTheme(next)
               }}>
                 {Object.entries(themes).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
               </select>
-              <p>Replies are simulated. Conversation history is held in this tab until you reload or close it.</p>
+              <p>Signed in as {session.username}.</p>
+              <button type="button" className="secondary" onClick={() => void logout()}>Sign out</button>
             </section>
           )}
-          {projects.flatMap((item) => [...providerIds, 'compare' as const].map((tab) => {
-            const key = `${item.id}:${tab}`
-            return visited.includes(key) && (
-              <div key={key} hidden={key !== activeKey}>
-                <Conversation view={tab} />
-              </div>
-            )
-          }))}
+          {view !== 'settings' && project && (
+            <Conversation key={`${project.id}:${view}`} view={view} projectId={project.id} gptMode={session.gptMode} />
+          )}
         </main>
       </div>
+    </div>
+  )
+}
+
+
+export function App() {
+  const [session, setSession] = useState<SessionInfo | null | undefined>(undefined)
+  const [theme, setTheme] = useState<Theme>(readTheme)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const expire = () => setSession(null)
+    window.addEventListener('nexus-session-expired', expire)
+    void api<SessionInfo>('/session', undefined, controller.signal).then(setSession).catch((failure: unknown) => {
+      if (controller.signal.aborted) return
+      setSession(null)
+      if (!(failure instanceof ApiError && failure.status === 401)) setError('Could not check your session.')
+    })
+    return () => {
+      controller.abort()
+      window.removeEventListener('nexus-session-expired', expire)
+    }
+  }, [])
+
+  function changeTheme(next: Theme) {
+    setTheme(next)
+    try { localStorage.setItem('nexus-theme', next) } catch { /* Apply the theme for this session. */ }
+  }
+
+  if (session) return <Dashboard session={session} theme={theme} onTheme={changeTheme} onLogout={() => setSession(null)} />
+  return (
+    <div className="app" data-theme={theme}>
+      <main className="auth-shell">
+        {error && <p role="alert">{error}</p>}
+        {session === undefined ? <p role="status">Checking your session…</p> :
+          <SignIn onSignIn={(value) => { setError(''); setSession(value) }} />}
+      </main>
     </div>
   )
 }

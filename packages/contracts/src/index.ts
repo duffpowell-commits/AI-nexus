@@ -8,7 +8,7 @@ export const providers = {
 export type ProviderId = keyof typeof providers
 export const providerIds = Object.keys(providers) as ProviderId[]
 export const maxPromptLength = 4000
-export type WorkflowStatus = 'planned' | 'running' | 'waiting for approval' | 'succeeded' | 'failed'
+export type WorkflowStatus = 'planned' | 'running' | 'waiting for approval' | 'succeeded' | 'failed' | 'cancelled'
 
 export interface PromptRequest {
   prompt: string
@@ -39,3 +39,20 @@ export function parsePrompt(input: unknown): PromptRequest | null {
   if (selected.length > 1 && consent !== true) return null
   return { prompt: prompt.trim(), providers: selected }
 }
+
+export type ChatView = ProviderId | 'compare'
+export interface Project { id: string; name: string }
+export interface SessionInfo { username: string; gptMode: ProviderReply['mode'] }
+export interface ChatReply extends ProviderReply {
+  id: string
+  model: string
+  status: 'complete' | 'error' | 'cancelled'
+}
+export interface ChatTurn { id: string; prompt: string; replies: ChatReply[] }
+type Attribution = Pick<ChatReply, 'id' | 'provider' | 'model' | 'mode'>
+export type ChatEvent = Attribution & (
+  | { type: 'start'; turnId: string }
+  | { type: 'delta'; text: string }
+  | { type: 'complete' }
+  | { type: 'error'; message: string; status: 'error' | 'cancelled' }
+)
