@@ -25,8 +25,11 @@
 - [ ] Verify installation on an Android device over HTTPS
 
 ## Milestone 3: Multi-AI and projects
-- [ ] Four live provider adapters
-- [ ] Compare/council mode with attribution
+- [x] Four server-side provider adapters with deterministic transport tests
+- [ ] Verify all four providers with authorized credentials
+- [x] Parallel comparison with consent, attribution and independent cancellation
+- [x] Persistent usage dashboard and transactional live budget reservations
+- [ ] Council mode
 - [ ] Project-scoped memory
 - [ ] Workflow approvals, logs, cancellation
 

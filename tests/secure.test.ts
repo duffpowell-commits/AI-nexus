@@ -160,7 +160,7 @@ test('redacts upstream failure, reserves the live budget and never grants access
   let calls = 0
   const internalMarker = 'internal-fixture-provider-detail'
   const streaming: StreamingProvider = {
-    model: 'deterministic-live-test', mode: 'live',
+    model: 'deterministic-live-test', mode: 'live', rates: { input: 1, output: 1 },
     async *stream() {
       calls++
       yield 'beginning'
@@ -168,7 +168,7 @@ test('redacts upstream failure, reserves the live budget and never grants access
     },
   }
   const { request, signIn, db } = await fixture(':memory:', {
-    gpt: { ...adapters.gpt, streaming }, liveOwner: 'alice', liveCap: 1,
+    gpt: { ...adapters.gpt, streaming }, liveOwner: 'alice', liveCap: 1, budgetMicros: 10_000,
   })
   const alice = await signIn('alice')
   const bob = await signIn('bob')
@@ -183,5 +183,106 @@ test('redacts upstream failure, reserves the live budget and never grants access
   expect((await request(path, prompt, alice)).status).toBe(429)
   const bobEvents = await (await request((await firstProject(request, bob)) + '/stream', prompt, bob)).text()
   expect(bobEvents).toContain('"mode":"mock"')
+  expect(calls).toBe(1)
+})
+
+test('records attributed usage without exposing another account’s records', async () => {
+  const { request, signIn } = await fixture()
+  const alice = await signIn('alice')
+  const bob = await signIn('bob')
+  const path = await firstProject(request, alice)
+  await (await request(path + '/stream', { prompt: 'usage fixture', providers: ['gpt'] }, alice)).text()
+  const response = await request('/usage', undefined, alice)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ requests: [{ provider: 'gpt', model: 'mock', status: 'complete', estimatedMicros: 0 }] })
+  expect(await (await request('/usage', undefined, bob)).json()).toMatchObject({ requests: [] })
+  expect((await request('/usage')).status).toBe(401)
+})
+
+test('cancels one comparison participant independently and shares only the approved prompt', async () => {
+  const live = {
+    ...adapters.gpt,
+    streaming: {
+      mode: 'live' as const, model: 'fixture-gpt', rates: { input: 1, output: 1 },
+      async *stream({ history, prompt, signal }: Parameters<StreamingProvider['stream']>[0]) {
+        expect(history).toEqual([])
+        yield prompt
+        if (prompt === 'share this') {
+          await new Promise<void>((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+          })
+        }
+      },
+    },
+  }
+  const { request, signIn } = await fixture(':memory:', { gpt: live, liveOwner: 'alice', liveCap: 10, budgetMicros: 20_000 })
+  const cookie = await signIn('alice')
+  const gpt = await firstProject(request, cookie)
+  await (await request(gpt + '/stream', { prompt: 'private history', providers: ['gpt'] }, cookie)).text()
+  const path = gpt.replace(/gpt$/, 'compare')
+  const response = await request(path + '/stream', { prompt: 'share this', providers: ['gpt', 'claude'], consent: true }, cookie)
+  const reader = response.body!.getReader()
+  let received = ''
+  while (!received.includes('"provider":"claude"') || !received.includes('"type":"complete"')) {
+    const chunk = await reader.read()
+    if (chunk.done) throw new Error('Expected Claude to finish while GPT is open')
+    received += new TextDecoder().decode(chunk.value)
+  }
+  const events = received.split('\n').filter((line) => line.startsWith('data: ')).map((line) => JSON.parse(line.slice(6)))
+  const replyId = events.find((event) => event.provider === 'gpt' && event.type === 'start').id
+  const other = await (await request('/projects', { name: 'Other' }, cookie)).json()
+  expect((await request(`/projects/${other.id}/conversations/compare/stop`, { replyId }, cookie)).status).toBe(204)
+  expect((await request(path + '/stop', { replyId }, cookie)).status).toBe(204)
+  const terminal = await reader.read()
+  expect(new TextDecoder().decode(terminal.value)).toContain('"status":"cancelled"')
+  await reader.cancel()
+  const [turn] = await (await request(path, undefined, cookie)).json()
+  expect(turn.replies).toEqual(expect.arrayContaining([
+    expect.objectContaining({ provider: 'claude', status: 'complete' }),
+    expect.objectContaining({ provider: 'gpt', status: 'cancelled', text: 'share this' }),
+  ]))
+  const otherGpt = `/projects/${other.id}/conversations/gpt`
+  expect(await (await request(otherGpt, undefined, cookie)).json()).toEqual([])
+  expect(await (await request(otherGpt + '/stream', { prompt: 'fresh context', providers: ['gpt'] }, cookie)).text())
+    .toContain('"type":"complete"')
+})
+
+test('locks a live budget across concurrent servers and preserves usage after restart', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexus-budget-'))
+  cleanup.push(() => rmSync(dir, { recursive: true, force: true }))
+  const filename = join(dir, 'usage.sqlite')
+  let release!: () => void
+  const waiting = new Promise<void>((resolve) => { release = resolve })
+  let calls = 0
+  const options = {
+    sessionSecret: randomBytes(32).toString('hex'), liveOwner: 'alice', liveCap: 5, budgetMicros: 2000,
+    gpt: { ...adapters.gpt, streaming: {
+      mode: 'live' as const, model: 'fixture-gpt', rates: { input: 1, output: 1 },
+      async *stream({ usage }: Parameters<StreamingProvider['stream']>[0]) {
+        calls++
+        yield 'partial'
+        await waiting
+        usage?.(50, 20)
+      },
+    } },
+  }
+  const first = await fixture(filename, options)
+  const second = await fixture(filename, options)
+  const cookie = await first.signIn('alice')
+  const path = (await firstProject(first.request, cookie)) + '/stream'
+  const body = { prompt: 'concurrent', providers: ['gpt'] }
+  const reply = await first.request(path, body, cookie)
+  try {
+    expect((await second.request(path, body, cookie)).status).toBe(429)
+    expect(await (await second.request('/usage', undefined, cookie)).json()).toMatchObject({
+      requests: [{ status: 'reserved' }],
+    })
+  } finally { release() }
+  await reply.text()
+  for (let index = 0; index < 4; index++) await cleanup.pop()!()
+  const restarted = await fixture(filename, options)
+  expect(await (await restarted.request('/usage', undefined, cookie)).json()).toMatchObject({
+    requests: [{ status: 'complete', inputTokens: 50, outputTokens: 20, estimatedMicros: 70 }],
+  })
   expect(calls).toBe(1)
 })

@@ -3,12 +3,15 @@ import { providers, type ProviderId, type ProviderReply } from '@nexus/contracts
 export interface StreamInput {
   prompt: string
   history: readonly { role: 'user' | 'assistant'; content: string }[]
+  reserveRetry?: () => boolean
+  usage?: (input: number, output: number) => void
   signal: AbortSignal
 }
 
 export interface StreamingProvider {
   mode: ProviderReply['mode']
   model: string
+  rates?: { input: number; output: number }
   stream(input: StreamInput): AsyncIterable<string>
 }
 

@@ -5,8 +5,8 @@ import {
 } from '@nexus/contracts'
 import { api, streamChat } from './api'
 
-export function Conversation({ view, projectId, gptMode }: {
-  view: ChatView; projectId: string; gptMode: SessionInfo['gptMode']
+export function Conversation({ view, projectId, modes }: {
+  view: ChatView; projectId: string; modes: SessionInfo['modes']
 }) {
   const headingId = useId()
   const promptId = useId()
@@ -16,6 +16,7 @@ export function Conversation({ view, projectId, gptMode }: {
   const [prompt, setPrompt] = useState('')
   const [turns, setTurns] = useState<ChatTurn[]>([])
   const [pending, setPending] = useState<ChatTurn>()
+  const [openIds, setOpenIds] = useState<string[]>([])
   const [status, setStatus] = useState<WorkflowStatus>('planned')
   const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
@@ -82,9 +83,13 @@ export function Conversation({ view, projectId, gptMode }: {
             }
           }
         }
+        setOpenIds([...open])
         setPending({ ...turn })
       })
-      if (failure) setError(failure)
+      if (failure) {
+        const completed = turn.replies.filter((reply) => reply.status === 'complete').length
+        setError(compare && completed ? `${completed} of ${selection.length} providers completed. Some replies were stopped or incomplete.` : failure)
+      }
       else if (open.size || turn.replies.length !== selection.length) throw new Error('The stream ended early. Try again.')
       else setPrompt('')
       setStatus(cancelled ? 'cancelled' : failure ? 'failed' : 'succeeded')
@@ -96,18 +101,19 @@ export function Conversation({ view, projectId, gptMode }: {
       if (!controller.signal.aborted) {
         if (turn.id !== 'pending') setTurns((previous) => [...previous, turn])
         setPending(undefined)
+        setOpenIds([])
       }
     }
   }
 
-  async function stop() {
+  async function stop(replyId?: string) {
     if (pending?.id === 'pending') {
       request.current?.abort()
       setPending(undefined)
       setStatus('cancelled')
       return
     }
-    try { await api(path + '/stop', {}) }
+    try { await api(path + '/stop', { replyId }) }
     catch { setError('Could not stop the reply. Try again.') }
   }
 
@@ -116,7 +122,7 @@ export function Conversation({ view, projectId, gptMode }: {
       <header className="conversation-heading">
         <div>
           <h2 id={headingId}>{compare ? 'Collaboration workspace' : `Chat with ${providers[view].name}`}</h2>
-          <p>{compare ? 'Send the same prompt to the selected providers and compare their replies.' : `${providers[view].vendor} · ${view === 'gpt' && gptMode === 'live' ? 'Live GPT' : 'Mock adapter'}`}</p>
+          <p>{compare ? 'Send the same prompt to the selected providers and compare their replies.' : `${providers[view].vendor} · ${modes[view] === 'live' ? 'Live adapter' : 'Mock adapter'}`}</p>
         </div>
         <span className="status" data-status={status} role="status">
           {compare && selected.length >= 2 && !consent && status === 'planned' ? 'waiting for approval' : status}
@@ -135,7 +141,13 @@ export function Conversation({ view, projectId, gptMode }: {
                   <strong>{providers[reply.provider].name}</strong>{' '}
                   <small>{reply.mode === 'mock' ? 'Mock reply' : `Live · ${reply.model}`}</small>
                   <p>{reply.text}</p>
-                  {turn !== pending && reply.status !== 'complete' &&
+                  {turn === pending && openIds.includes(reply.id) && (
+                    <div className="reply-progress">
+                      <small role="status">Generating…</small>
+                      {compare && <button type="button" onClick={() => void stop(reply.id)}>Stop {providers[reply.provider].name}</button>}
+                    </div>
+                  )}
+                  {!openIds.includes(reply.id) && reply.status !== 'complete' &&
                     <small>{reply.status === 'cancelled' ? 'Stopped' : 'Incomplete reply'}</small>}
                 </div>
               ))}
@@ -154,7 +166,7 @@ export function Conversation({ view, projectId, gptMode }: {
                   setConsent(false)
                   setStatus('planned')
                 }} />
-                {providers[id].name} ({id === 'gpt' && gptMode === 'live' ? 'Live' : 'Mock'})
+                {providers[id].name} ({modes[id] === 'live' ? 'Live' : 'Mock'})
               </label>
             ))}
           </div>

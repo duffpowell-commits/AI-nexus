@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { liveModels, type ExternalProvider } from './live.js'
 
 export const openAiModels = ['gpt-4.1-mini', 'gpt-4.1-nano'] as const
 export type OpenAiModel = typeof openAiModels[number]
@@ -43,20 +44,38 @@ export function readConfig(env = process.env) {
     throw new Error('HTTPS mode requires an HTTPS origin, persistent database path and session secret of at least 32 bytes.')
   }
 
+  const external = {} as Partial<Record<ExternalProvider, { key: string; model: string }>>
+  for (const [id, variable] of [['claude', 'ANTHROPIC_API_KEY'], ['grok', 'XAI_API_KEY'], ['gemini', 'GEMINI_API_KEY']] as const) {
+    const key = env[variable]
+    const allowed: readonly string[] = liveModels[id]
+    const model = env[`NEXUS_${id.toUpperCase()}_MODEL`] ?? allowed[0]
+    if (!allowed.includes(model)) throw new Error(`The ${id} model is outside the allowlist.`)
+    if (key !== undefined) {
+      if (!key.trim()) throw new Error(`${variable} must be nonempty when set.`)
+      external[id] = { key, model }
+    }
+  }
   const apiKey = env.OPENAI_API_KEY
   const owner = env.NEXUS_LIVE_OWNER
   const model = env.NEXUS_OPENAI_MODEL ?? 'gpt-4.1-mini'
   if (!openAiModels.some((allowed) => allowed === model)) throw new Error('NEXUS_OPENAI_MODEL is outside the model allowlist.')
-  if (apiKey && (!apiKey.trim() || !owner || !/^[a-z0-9][a-z0-9_-]{2,39}$/.test(owner) ||
+  if (apiKey !== undefined && !apiKey.trim()) throw new Error('OPENAI_API_KEY must be nonempty when set.')
+  const liveEnabled = Boolean(apiKey || Object.keys(external).length)
+  if (liveEnabled && (!owner || !/^[a-z0-9][a-z0-9_-]{2,39}$/.test(owner) ||
       !env.NEXUS_LIVE_REQUEST_CAP || databasePath(env) === ':memory:')) {
-    throw new Error('Live GPT requires an owner username, persistent database and explicit request cap.')
+    throw new Error('Live providers require an owner username, persistent database and explicit request cap.')
   }
-  const cap = apiKey ? integer(env.NEXUS_LIVE_REQUEST_CAP!, 'NEXUS_LIVE_REQUEST_CAP', 1, 1000) : 0
+  const cap = liveEnabled ? integer(env.NEXUS_LIVE_REQUEST_CAP!, 'NEXUS_LIVE_REQUEST_CAP', 1, 1000) : 0
 
+  const budgetMicros = liveEnabled
+    ? integer(env.NEXUS_LIVE_BUDGET_MICROS ?? '', 'NEXUS_LIVE_BUDGET_MICROS', 1, 1_000_000_000)
+    : undefined
   return {
+    external, owner, cap, budgetMicros,
+    chatLimit: integer(env.NEXUS_CHAT_REQUESTS_PER_MINUTE ?? '20', 'NEXUS_CHAT_REQUESTS_PER_MINUTE', 1, 120),
     port, dbPath: databasePath(env), secure,
     allowedOrigins: secure ? [origin.origin] : [origin.origin, 'http://127.0.0.1:5173'],
     sessionSecret: secret || randomBytes(48).toString('hex'),
-    live: apiKey && owner ? { apiKey, owner, model: model as OpenAiModel, cap } : undefined,
+    live: apiKey && owner ? { apiKey, model: model as OpenAiModel } : undefined,
   }
 }

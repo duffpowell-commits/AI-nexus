@@ -56,7 +56,9 @@ try {
   const login = await request('/api/session', { method: 'POST', headers, body: JSON.stringify({ username, password }) })
   assert.equal(login.status, 200)
   const cookie = login.headers.get('set-cookie').split(';')[0]
-  assert.deepEqual(await login.json(), { username, gptMode: 'mock' })
+  assert.deepEqual(await login.json(), {
+    username, gptMode: 'mock', modes: { gpt: 'mock', claude: 'mock', grok: 'mock', gemini: 'mock' },
+  })
   const projects = await request('/api/projects', { headers: { Cookie: cookie } })
   assert.equal(projects.status, 200)
   const [project] = await projects.json()
@@ -73,6 +75,9 @@ try {
   const [turn] = await history.json()
   assert.equal(turn.prompt, 'Smoke test')
   assert.equal(turn.replies[0].mode, 'mock')
+  const usage = await (await request('/api/usage', { headers: { Cookie: cookie } })).json()
+  assert.equal(usage.requests[0].id, turn.replies[0].id)
+  assert.equal(usage.requests[0].estimatedMicros, 0)
   console.log('Production startup, sign-in, persistent mock streaming, and PWA assets passed.')
 } finally {
   server?.kill()
