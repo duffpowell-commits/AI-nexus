@@ -7,21 +7,23 @@
 - [ ] Review and merge foundation PR
 
 ## Milestone 1: Executable skeleton
-- [ ] React/TypeScript/Vite PWA scaffold
-- [ ] Node/TypeScript API scaffold
-- [ ] Shared contracts and local development instructions
-- [ ] Lint, typecheck, tests, CI
-- [ ] Mobile navigation and accessible placeholder dashboard
+- [x] React/TypeScript/Vite PWA scaffold and offline notice
+- [x] Node/TypeScript API scaffold with four mock provider adapters
+- [x] Shared contracts and local development instructions
+- [x] Lint, typecheck, unit and integration tests, production smoke test, CI
+- [x] Mobile navigation, theme settings, and accessible artwork placeholders
+- [x] Project-scoped session chat and opt-in mock comparison
+- [ ] Verify PWA installation on Android hardware
 
 ## Milestone 2: Real chat
 - [ ] Auth and secure server-side provider credentials
-- [ ] Provider adapter contracts
+- [x] Provider adapter contracts introduced in Milestone 1
 - [ ] First real provider streaming chat
 - [ ] Conversation persistence and error handling
 - [ ] Usage/budget controls
 
 ## Milestone 3: Multi-AI and projects
-- [ ] Four provider adapters
+- [ ] Four live provider adapters
 - [ ] Compare/council mode with attribution
 - [ ] Project-scoped memory
 - [ ] Workflow approvals, logs, cancellation
