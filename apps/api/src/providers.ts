@@ -1,15 +1,43 @@
 import { providers, type ProviderId, type ProviderReply } from '@nexus/contracts'
 
+export interface StreamInput {
+  prompt: string
+  history: readonly { role: 'user' | 'assistant'; content: string }[]
+  signal: AbortSignal
+}
+
+export interface StreamingProvider {
+  mode: ProviderReply['mode']
+  model: string
+  stream(input: StreamInput): AsyncIterable<string>
+}
+
 export interface ProviderAdapter<Id extends ProviderId = ProviderId> {
   readonly id: Id
   readonly capabilities: { streaming: boolean; usageEstimates: boolean }
   listModels(): Promise<readonly string[]>
   sendMessage(prompt: string): Promise<ProviderReply & { provider: Id }>
+  streaming?: StreamingProvider
   estimateUsage(prompt: string): Promise<number | null>
   normalizeError(error: unknown): { message: string }
 }
 
-type ProviderRegistry = { [Id in ProviderId]: ProviderAdapter<Id> }
+export type ProviderRegistry = { [Id in ProviderId]: ProviderAdapter<Id> }
+
+export function streamAdapter<Id extends ProviderId>(adapter: ProviderAdapter<Id>): StreamingProvider {
+  return adapter.streaming ?? {
+    mode: 'mock',
+    model: 'mock',
+    async *stream({ prompt, signal }) {
+      signal.throwIfAborted()
+      const { text } = await adapter.sendMessage(prompt)
+      for (const chunk of text.match(/[^]{1,64}/g) ?? []) {
+        signal.throwIfAborted()
+        yield chunk
+      }
+    },
+  }
+}
 
 function mock<Id extends ProviderId>(id: Id, guidance: string): ProviderAdapter<Id> {
   return {

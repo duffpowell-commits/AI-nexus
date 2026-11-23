@@ -1,10 +1,10 @@
 # Nexus Roadmap
 
-## Milestone 0: Foundation (in progress)
+## Milestone 0: Foundation
 - [x] Product specification
 - [x] Architecture proposal
 - [x] Agent rules
-- [ ] Review and merge foundation PR
+- [x] Review and merge foundation PR
 
 ## Milestone 1: Executable skeleton
 - [x] React/TypeScript/Vite PWA scaffold and offline notice
@@ -15,12 +15,14 @@
 - [x] Project-scoped session chat and opt-in mock comparison
 - [ ] Verify PWA installation on Android hardware
 
-## Milestone 2: Real chat
-- [ ] Auth and secure server-side provider credentials
-- [x] Provider adapter contracts introduced in Milestone 1
-- [ ] First real provider streaming chat
-- [ ] Conversation persistence and error handling
-- [ ] Usage/budget controls
+## Milestone 2: Secure, persistent streaming chat
+- [x] Account provisioning, server-side sessions and CSRF protection
+- [x] Owner-scoped server-side OpenAI configuration and streaming adapter
+- [x] Persistent projects, conversation history and message attribution
+- [x] Stop generation, partial reply handling and retry
+- [x] Request limits and a persistent live request budget
+- [ ] Verify live GPT with authorized OpenAI credentials
+- [ ] Verify installation on an Android device over HTTPS
 
 ## Milestone 3: Multi-AI and projects
 - [ ] Four live provider adapters

@@ -5,3 +5,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.nexus/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
