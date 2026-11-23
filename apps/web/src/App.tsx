@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { providerIds, providers, type ChatView, type Project, type SessionInfo } from '@nexus/contracts'
 import { api, ApiError } from './api'
 import { Conversation } from './Conversation'
+import { Usage } from './Usage'
 import { SignIn } from './SignIn'
 
 const themes = { obsidian: 'Obsidian', parchment: 'Parchment' } as const
 type Theme = keyof typeof themes
-type View = ChatView | 'settings'
+type View = ChatView | 'settings' | 'usage'
 
 function readTheme(): Theme {
   try {
@@ -26,6 +27,16 @@ function Dashboard({ session, theme, onTheme, onLogout }: {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [online, setOnline] = useState(navigator.onLine)
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine)
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
+  }, [])
   const project = projects.find((item) => item.id === projectId)
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -77,7 +88,7 @@ function Dashboard({ session, theme, onTheme, onLogout }: {
       <a href="#workspace" className="skip">Skip to workspace</a>
       <header className="top">
         <a className="brand" href="/" aria-label="Nexus home"><span aria-hidden="true">N</span> NEXUS</a>
-        <span className="mode">{session.gptMode === 'live' ? 'GPT live' : 'Mock mode'}</span>
+        <span className="mode">{Object.values(session.modes).some((mode) => mode === 'live') ? 'Live providers enabled' : 'Mock mode'}</span>
         <div className="avatar" title="Owner avatar placeholder" aria-label="Owner avatar placeholder" role="img">DP</div>
       </header>
       <div className="layout">
@@ -101,6 +112,7 @@ function Dashboard({ session, theme, onTheme, onLogout }: {
               </button>
             ))}
             <button aria-current={view === 'compare' ? 'page' : undefined} onClick={() => setView('compare')}>Compare</button>
+            <button aria-current={view === 'usage' ? 'page' : undefined} onClick={() => setView('usage')}>Usage</button>
             <button aria-current={view === 'settings' ? 'page' : undefined} onClick={() => setView('settings')}>Settings</button>
           </nav>
         </aside>
@@ -109,6 +121,7 @@ function Dashboard({ session, theme, onTheme, onLogout }: {
             <h1>{project?.name ?? 'Workspace'}</h1>
             <span className="mascot" role="img" aria-label="Hydra artwork placeholder">Hydra artwork placeholder</span>
           </div>
+          {!online && <p role="status">You’re offline. Chat requires a connection.</p>}
           {loading && <p role="status">Loading projects…</p>}
           {error && <p role="alert">{error}</p>}
           {error && !loading && !projects.length && <button type="button" onClick={() => void load()}>Retry loading projects</button>}
@@ -126,8 +139,9 @@ function Dashboard({ session, theme, onTheme, onLogout }: {
               <button type="button" className="secondary" onClick={() => void logout()}>Sign out</button>
             </section>
           )}
-          {view !== 'settings' && project && (
-            <Conversation key={`${project.id}:${view}`} view={view} projectId={project.id} gptMode={session.gptMode} />
+          {view === 'usage' && <Usage />}
+          {view !== 'settings' && view !== 'usage' && project && (
+            <Conversation key={`${project.id}:${view}`} view={view} projectId={project.id} modes={session.modes} />
           )}
         </main>
       </div>
