@@ -2,7 +2,7 @@ import { mkdirSync, openSync, closeSync, chmodSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
-import type { ChatReply, ChatTurn, ChatView, Project } from '@nexus/contracts'
+import type { ChatReply, ChatTurn, ChatView, Project, UsageRecord } from '@nexus/contracts'
 
 const migrations = [
   `CREATE TABLE users (
@@ -29,6 +29,14 @@ const migrations = [
   CREATE INDEX replies_turn ON replies(turn_id);
   CREATE TABLE live_budget (id INTEGER PRIMARY KEY CHECK(id = 1), used INTEGER NOT NULL) STRICT;
   INSERT INTO live_budget VALUES (1, 0);`,
+  `CREATE TABLE usage (
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), turn_id TEXT NOT NULL REFERENCES turns(id),
+    provider TEXT NOT NULL, model TEXT NOT NULL, mode TEXT NOT NULL, status TEXT NOT NULL,
+    input_tokens INTEGER, output_tokens INTEGER, estimated_micros INTEGER NOT NULL, timestamp INTEGER NOT NULL
+  ) STRICT;
+  CREATE INDEX usage_owner ON usage(user_id, timestamp);
+  CREATE TABLE spend_budget (id INTEGER PRIMARY KEY CHECK(id = 1), used INTEGER NOT NULL) STRICT;
+  INSERT INTO spend_budget VALUES (1, 0);`,
 ]
 
 export function openDatabase(path: string) {
@@ -69,7 +77,15 @@ export function findConversation(db: DatabaseSync, userId: string, projectId: st
     WHERE p.user_id = ? AND p.id = ? AND c.view = ?`).get(userId, projectId, view)?.id as string | undefined
 }
 
-export function startTurn(db: DatabaseSync, userId: string, projectId: string, view: ChatView, prompt: string, liveCap?: number) {
+export function reserveLiveRequests(db: DatabaseSync, cap: number, count: number) {
+  return Boolean(db.prepare('UPDATE live_budget SET used = used + ? WHERE id = 1 AND used <= ? - ?')
+    .run(count, cap, count).changes)
+}
+
+export function startTurn(db: DatabaseSync, userId: string, projectId: string, view: ChatView, prompt: string, liveCap?: number,
+  reservations: Pick<UsageRecord, 'id' | 'provider' | 'model' | 'mode' | 'estimatedMicros'>[] = [],
+  budgetMicros?: number,
+) {
   db.exec('BEGIN IMMEDIATE')
   try {
     db.prepare(`INSERT INTO conversations (id, project_id, view)
@@ -87,9 +103,21 @@ export function startTurn(db: DatabaseSync, userId: string, projectId: string, v
       db.exec('ROLLBACK')
       return { error: 'full' } as const
     }
-    if (liveCap !== undefined && !db.prepare('UPDATE live_budget SET used = used + 1 WHERE id = 1 AND used < ?').run(liveCap).changes) {
+    const liveCount = reservations.filter(({ mode }) => mode === 'live').length
+    if (liveCap !== undefined && !reserveLiveRequests(db, liveCap, liveCount)) {
       db.exec('ROLLBACK')
       return { error: 'budget' } as const
+    }
+    const total = reservations.reduce((sum, record) => sum + record.estimatedMicros, 0)
+    if (budgetMicros !== undefined && total && !db.prepare(
+      'UPDATE spend_budget SET used = used + ? WHERE id = 1 AND used <= ? - ?',
+    ).run(total, budgetMicros, total).changes) {
+      db.exec('ROLLBACK')
+      return { error: 'budget' } as const
+    }
+    const insert = db.prepare("INSERT INTO usage VALUES (?, ?, ?, ?, ?, ?, 'reserved', NULL, NULL, ?, ?)")
+    for (const record of reservations) {
+      insert.run(record.id, userId, id, record.provider, record.model, record.mode, record.estimatedMicros, Date.now())
     }
     db.exec('COMMIT')
     return { id } as const
@@ -112,4 +140,34 @@ export function loadTurns(db: DatabaseSync, conversation: string, before?: strin
 export function saveReply(db: DatabaseSync, turn: string, reply: ChatReply) {
   db.prepare('INSERT INTO replies VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(reply.id, turn, reply.provider, reply.model, reply.mode, reply.text, reply.status)
+}
+
+export function finishReply(db: DatabaseSync, turnId: string, reply: ChatReply, tokens: { input: number; output: number } | undefined,
+  estimatedMicros: number | undefined, reconcile: boolean,
+) {
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    saveReply(db, turnId, reply)
+    const reserved = db.prepare('SELECT estimated_micros FROM usage WHERE id = ?').get(reply.id)
+    db.prepare(`UPDATE usage SET status = ?, input_tokens = ?, output_tokens = ?,
+      estimated_micros = COALESCE(?, estimated_micros) WHERE id = ?`)
+      .run(reply.status, tokens?.input ?? null, tokens?.output ?? null, estimatedMicros ?? null, reply.id)
+    if (reconcile && reserved && estimatedMicros !== undefined) {
+      db.prepare('UPDATE spend_budget SET used = used + ? WHERE id = 1')
+        .run(estimatedMicros - Number(reserved.estimated_micros))
+    }
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+export function loadUsage(db: DatabaseSync, userId: string) {
+  const requests = db.prepare(`SELECT id, provider, model, mode, status, input_tokens AS inputTokens,
+    output_tokens AS outputTokens, estimated_micros AS estimatedMicros, timestamp
+    FROM usage WHERE user_id = ? ORDER BY timestamp DESC, rowid DESC LIMIT 50`).all(userId)
+  const estimatedMicros = Number(db.prepare('SELECT COALESCE(SUM(estimated_micros), 0) AS total FROM usage WHERE user_id = ?')
+    .get(userId)?.total)
+  return { requests, estimatedMicros }
 }

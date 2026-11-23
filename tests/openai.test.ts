@@ -9,20 +9,25 @@ test('uses the official GPT streaming transport with bounded, non-stored complet
     expect(new Headers(init?.headers).get('authorization')?.endsWith(fakeCredential)).toBe(true)
     expect(JSON.parse(String(init?.body))).toEqual({
       model: 'gpt-4.1-mini', stream: true, store: false, max_completion_tokens: 512,
+      stream_options: { include_usage: true },
       messages: [{ role: 'user', content: 'previous' }, { role: 'assistant', content: 'reply' }, { role: 'user', content: 'new' }],
     })
     return new Response([
       'data: {"choices":[{"delta":{"content":"first "},"finish_reason":null}]}\n\n',
       'data: {"choices":[{"delta":{"content":"second"},"finish_reason":null}]}\n\n',
       'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":5}}\n\n',
       'data: [DONE]\n\n',
     ].join(''), { headers: { 'Content-Type': 'text/event-stream' } })
   }
   const adapter = openAiAdapter(fakeCredential, 'gpt-4.1-mini', transport)
   const chunks = []
+  const usage: number[][] = []
   for await (const chunk of adapter.streaming!.stream({
+    usage: (input, output) => usage.push([input, output]),
     prompt: 'new', signal: new AbortController().signal,
     history: [{ role: 'user', content: 'previous' }, { role: 'assistant', content: 'reply' }],
   })) chunks.push(chunk)
   expect(chunks).toEqual(['first ', 'second'])
+  expect(usage).toEqual([[12, 5]])
 })

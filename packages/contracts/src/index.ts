@@ -42,7 +42,7 @@ export function parsePrompt(input: unknown): PromptRequest | null {
 
 export type ChatView = ProviderId | 'compare'
 export interface Project { id: string; name: string }
-export interface SessionInfo { username: string; gptMode: ProviderReply['mode'] }
+export interface SessionInfo { username: string; gptMode: ProviderReply['mode']; modes: Record<ProviderId, ProviderReply['mode']> }
 export interface ChatReply extends ProviderReply {
   id: string
   model: string
@@ -56,3 +56,20 @@ export type ChatEvent = Attribution & (
   | { type: 'complete' }
   | { type: 'error'; message: string; status: 'error' | 'cancelled' }
 )
+
+export interface UsageRecord {
+  id: string
+  provider: ProviderId
+  model: string
+  mode: ProviderReply['mode']
+  status: ChatReply['status'] | 'reserved'
+  inputTokens: number | null
+  outputTokens: number | null
+  estimatedMicros: number
+  timestamp: number
+}
+export interface UsageSummary {
+  requests: UsageRecord[]
+  estimatedMicros: number
+  budgetMicros: number | null
+}

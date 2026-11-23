@@ -1,12 +1,12 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
-import { parsePrompt, providerIds, type ChatView, type PromptResponse } from '@nexus/contracts'
+import { parsePrompt, providerIds, type ChatView, type PromptResponse, type SessionInfo, type ProviderId } from '@nexus/contracts'
 import { authenticate, csrf, sessions } from './auth.js'
-import { addProject, findConversation, loadTurns, openDatabase, startTurn } from './database.js'
-import { adapters, streamAdapter, type ProviderAdapter } from './providers.js'
-import { modelHistory, runStream } from './stream.js'
+import { addProject, findConversation, loadUsage, loadTurns, openDatabase, startTurn } from './database.js'
+import { adapters, streamAdapter, type ProviderAdapter, type ProviderRegistry } from './providers.js'
+import { modelHistory, reserveCost, runStream } from './stream.js'
 
 // Express uses the four-argument signature to register error handlers.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -45,6 +45,8 @@ interface AppOptions {
   secure?: boolean
   allowedOrigins?: readonly string[]
   gpt?: ProviderAdapter<'gpt'>
+  providers?: Partial<ProviderRegistry>
+  budgetMicros?: number
   liveOwner?: string
   liveCap?: number
   chatLimit?: number
@@ -52,7 +54,7 @@ interface AppOptions {
 
 export function createApp({
   db = openDatabase(':memory:'), webRoot, sessionSecret = randomBytes(48).toString('hex'),
-  secure = false, allowedOrigins, gpt = adapters.gpt, liveOwner, liveCap = 0, chatLimit = 20,
+  secure = false, allowedOrigins, gpt = adapters.gpt, liveOwner, liveCap = 0, chatLimit = 20, providers = {}, budgetMicros,
 }: AppOptions = {}) {
   const app = express()
   app.disable('x-powered-by')
@@ -66,7 +68,7 @@ export function createApp({
     if (secure) response.set('Strict-Transport-Security', 'max-age=31536000')
     next()
   })
-  const active = new Map<string, { controller: AbortController; project: string; view: ChatView }>()
+  const active = new Map<string, { controller: AbortController; project: string; view: ChatView; replies: Map<string, AbortController> }>()
   const loginLimit = rateLimit({
     windowMs: 15 * 60_000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false,
     skipSuccessfulRequests: true, message: { error: 'Too many sign-in attempts. Try again later.' },
@@ -77,8 +79,15 @@ export function createApp({
     message: { error: 'Too many chat requests. Try again in a minute.' },
   })
   const { name, cookie, middleware } = sessions(db, sessionSecret, secure)
-  const userGpt = (username: string) => username === liveOwner || gpt.streaming?.mode !== 'live' ? gpt : adapters.gpt
-  const sessionInfo = (username: string) => ({ username, gptMode: streamAdapter(userGpt(username)).mode })
+  const registry = { ...adapters, gpt, ...providers }
+  function providerFor(id: ProviderId, username: string) {
+    const adapter = registry[id]
+    return streamAdapter(username === liveOwner || adapter.streaming?.mode !== 'live' ? adapter : adapters[id])
+  }
+  function sessionInfo(username: string): SessionInfo {
+    const modes = Object.fromEntries(providerIds.map((id) => [id, providerFor(id, username).mode])) as SessionInfo['modes']
+    return { username, gptMode: modes.gpt, modes }
+  }
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next() })
   app.get('/api/health', (_request, response) => response.json({ status: 'ok', mode: streamAdapter(gpt).mode }))
   app.use('/api', (request, response, next) => {
@@ -102,6 +111,10 @@ export function createApp({
       if (error) { next(error); return }
       response.clearCookie(name, cookie).status(204).end()
     })
+  })
+  app.get('/api/usage', (request, response) => {
+    const user = request.session.user!
+    response.json({ ...loadUsage(db, user.id), budgetMicros: user.username === liveOwner ? budgetMicros ?? null : null })
   })
   app.get('/api/projects', (request, response) => {
     response.json(db.prepare('SELECT id, name FROM projects WHERE user_id = ? ORDER BY rowid').all(request.session.user!.id))
@@ -148,7 +161,15 @@ export function createApp({
   projectConversation.post('/stop', requireJson, json, (request, response) => {
     const { project, view } = response.locals.conversation
     const generation = active.get(request.session.user!.id)
-    if (generation && generation.project === project && generation.view === view) generation.controller.abort()
+    const replyId = request.body?.replyId
+    if (replyId !== undefined && (typeof replyId !== 'string' || !uuid.test(replyId))) {
+      response.status(400).json({ error: 'Invalid reply identifier.' })
+      return
+    }
+    if (generation && generation.project === project && generation.view === view) {
+      if (replyId) generation.replies.get(replyId)?.abort()
+      else generation.controller.abort()
+    }
     response.status(204).end()
   })
   projectConversation.post('/stream', requests, requireJson, json, async (request, response) => {
@@ -161,20 +182,28 @@ export function createApp({
     }
     if (active.has(user.id)) { response.status(409).json({ error: 'A reply is already streaming.' }); return }
     const selections = input.providers.map((provider) => ({
-      provider, adapter: streamAdapter(provider === 'gpt' ? userGpt(user.username) : adapters[provider]),
+      provider, adapter: providerFor(provider, user.username), id: randomUUID(), controller: new AbortController(),
     }))
     const live = selections.some(({ adapter }) => adapter.mode === 'live')
     const conversation = findConversation(db, user.id, project, view)
-    const history = live && view === 'gpt' && conversation ? modelHistory(loadTurns(db, conversation, undefined, 10)) : []
+    const history = live && view !== 'compare' && conversation ? modelHistory(loadTurns(db, conversation, undefined, 10), view) : []
     if (response.destroyed) return
-    const turn = startTurn(db, user.id, project, view, input.prompt, live ? liveCap : undefined)
-    if (turn.error === 'budget') { response.status(429).json({ error: 'Live GPT request budget exhausted.' }); return }
+    if (live && (budgetMicros === undefined || selections.some(({ adapter }) => adapter.mode === 'live' && !adapter.rates))) {
+      response.status(503).json({ error: 'Live provider budgets are unavailable.' })
+      return
+    }
+    const reservations = selections.map(({ provider, id, adapter }) => ({
+      id, provider, model: adapter.model, mode: adapter.mode,
+      estimatedMicros: reserveCost(adapter, input.prompt, history),
+    }))
+    const turn = startTurn(db, user.id, project, view, input.prompt, live ? liveCap : undefined, reservations, budgetMicros)
+    if (turn.error === 'budget') { response.status(429).json({ error: 'Live provider budget exhausted.' }); return }
     if (turn.error === 'missing') { response.status(404).json({ error: 'Conversation not found.' }); return }
     if (turn.error === 'full') { response.status(409).json({ error: 'Conversation limit reached. Start a new project to continue.' }); return }
     const controller = new AbortController()
-    active.set(user.id, { controller, project, view })
+    active.set(user.id, { controller, project, view, replies: new Map(selections.map((item) => [item.id, item.controller])) })
     try {
-      await runStream({ db, response, controller, turnId: turn.id, prompt: input.prompt, history, selections })
+      await runStream({ db, response, controller, turnId: turn.id, prompt: input.prompt, history, selections, budgetMicros, liveCap })
     } finally {
       active.delete(user.id)
     }
