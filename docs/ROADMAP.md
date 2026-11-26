@@ -1,5 +1,8 @@
 # Nexus Roadmap
 
+Harness track (git-native, Python stdlib, runs today): docs/harness/BACKLOG.md, milestones H1-H4.
+The app milestones below are separate.
+
 ## Milestone 0: Foundation
 - [x] Product specification
 - [x] Architecture proposal

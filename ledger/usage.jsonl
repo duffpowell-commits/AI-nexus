@@ -1,0 +1,1 @@
+// usage ledger: one JSON object per line. source = invoice | api-response | app-meter | estimate. Only invoice rows are real cost; the rest are labeled as such in reports.

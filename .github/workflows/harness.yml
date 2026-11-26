@@ -1,0 +1,29 @@
+# Harness checks on every PR and push to main: unit tests + studio file validation. Stdlib only, no secrets.
+name: harness
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests (leases run against a local bare repo, never GitHub)
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@users.noreply.github.com
+          python3 -m unittest discover -s tests -v
+      - name: Validate studio/ and ledger/
+        run: python3 tools/nexus.py validate
+      - name: Queue snapshot
+        run: |
+          {
+            echo '## Studio queue'
+            echo '```'
+            python3 tools/nexus.py status
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
