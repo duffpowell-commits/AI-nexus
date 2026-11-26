@@ -5,7 +5,7 @@ For any AI or person picking up the harness. Update this file in every PR here. 
 ## Current state (2026-11-26)
 - Branch `claude/harness-foundation` adds the H1 foundation: `tools/nexus.py` (queue, leases, registry
   matching, status, deps, handoff, usage, outcomes, bench), `tools/studio_audit.py` (drift, gates, security),
-  `studio/*.json`, `ledger/*.jsonl`, 16 unit tests, CI (`harness`) and the weekly `studio-audit` workflow,
+  `studio/*.json`, `ledger/*.jsonl`, 17 unit tests, CI (`harness`) and the weekly `studio-audit` workflow,
   PROTOCOL.md and the audit pack in `docs/harness/`.
 - Maturity: 20/60 measured before; 32/60 projected once merged and green (AUDIT.md section 1).
 - **Stranded app work found:** Nexus app Milestones 1-3 (PWA + API, 4 provider adapters, usage budgets;

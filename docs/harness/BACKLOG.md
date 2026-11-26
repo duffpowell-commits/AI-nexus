@@ -11,7 +11,7 @@ outcome ledger + bench (8), completion status (13), stale-lease recovery (15), w
 Done when:
 - [ ] PR merged to AI-nexus main (Duff's OK, AGENTS.md rule 7). (T-001)
 - [ ] Rescue PR (stranded app Milestones 1-3) merged first, its `Nexus CI` green on main. (T-018)
-- [ ] `harness` CI job green on main; `python3 -m unittest discover -s tests` prints `OK` (16 tests).
+- [ ] `harness` CI job green on main; `python3 -m unittest discover -s tests` prints `OK` (17 tests).
 - [ ] `python3 tools/nexus.py validate` prints `NEXUS VALID` on main.
 - [ ] A real lease round-trip on the GitHub remote: claim, second claim refused, release.
 - [ ] `studio-audit` workflow has one real run whose summary shows the drift + security tables. (T-009)
