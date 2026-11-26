@@ -1,6 +1,6 @@
 # Nexus Architecture Proposal
 
-Status: proposed; no runtime implementation yet.
+The components below describe the target architecture. Milestone 2 runs the PWA and API on one host, with SQLite for users, sessions, projects, conversations, messages, and live request reservations. The OpenAI key is supplied through server environment configuration. PostgreSQL, a job worker, and managed per-user secret storage are future components.
 
 ## Components
 - **Web client:** React + TypeScript + Vite, mobile-first installable PWA.

@@ -1,0 +1,35 @@
+{
+  "name": "nexus",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "npm run build:contracts && concurrently -k 'npm run dev -w @nexus/api' 'npm run dev -w @nexus/web'",
+    "start": "npm run start -w @nexus/api",
+    "build:contracts": "npm run build -w @nexus/contracts",
+    "build:web": "npm run build:contracts && npm run build -w @nexus/web",
+    "build:api": "npm run build:contracts && npm run build -w @nexus/api",
+    "build": "npm run build:contracts && npm run build -w @nexus/api && npm run build -w @nexus/web",
+    "typecheck": "tsc -b && tsc -p apps/web",
+    "lint": "eslint .",
+    "pretest": "npm run build:contracts",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs",
+    "user:add": "npm run user:add -w @nexus/api --"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vitest": "^4.1.12"
+  }
+}

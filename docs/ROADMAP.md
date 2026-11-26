@@ -1,28 +1,35 @@
 # Nexus Roadmap
 
-## Milestone 0: Foundation (in progress)
+## Milestone 0: Foundation
 - [x] Product specification
 - [x] Architecture proposal
 - [x] Agent rules
-- [ ] Review and merge foundation PR
+- [x] Review and merge foundation PR
 
 ## Milestone 1: Executable skeleton
-- [ ] React/TypeScript/Vite PWA scaffold
-- [ ] Node/TypeScript API scaffold
-- [ ] Shared contracts and local development instructions
-- [ ] Lint, typecheck, tests, CI
-- [ ] Mobile navigation and accessible placeholder dashboard
+- [x] React/TypeScript/Vite PWA scaffold and offline notice
+- [x] Node/TypeScript API scaffold with four mock provider adapters
+- [x] Shared contracts and local development instructions
+- [x] Lint, typecheck, unit and integration tests, production smoke test, CI
+- [x] Mobile navigation, theme settings, and accessible artwork placeholders
+- [x] Project-scoped session chat and opt-in mock comparison
+- [ ] Verify PWA installation on Android hardware
 
-## Milestone 2: Real chat
-- [ ] Auth and secure server-side provider credentials
-- [ ] Provider adapter contracts
-- [ ] First real provider streaming chat
-- [ ] Conversation persistence and error handling
-- [ ] Usage/budget controls
+## Milestone 2: Secure, persistent streaming chat
+- [x] Account provisioning, server-side sessions and CSRF protection
+- [x] Owner-scoped server-side OpenAI configuration and streaming adapter
+- [x] Persistent projects, conversation history and message attribution
+- [x] Stop generation, partial reply handling and retry
+- [x] Request limits and a persistent live request budget
+- [ ] Verify live GPT with authorized OpenAI credentials
+- [ ] Verify installation on an Android device over HTTPS
 
 ## Milestone 3: Multi-AI and projects
-- [ ] Four provider adapters
-- [ ] Compare/council mode with attribution
+- [x] Four server-side provider adapters with deterministic transport tests
+- [ ] Verify all four providers with authorized credentials
+- [x] Parallel comparison with consent, attribution and independent cancellation
+- [x] Persistent usage dashboard and transactional live budget reservations
+- [ ] Council mode
 - [ ] Project-scoped memory
 - [ ] Workflow approvals, logs, cancellation
 
