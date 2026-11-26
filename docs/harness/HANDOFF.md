@@ -38,4 +38,5 @@ For any AI or person picking up the harness. Update this file in every PR here. 
 - Game repos' Claude guard blocks force pushes; `takeover`/`release` use `--force-with-lease` on lease refs here only.
 
 ## Log (newest first)
+- 2026-11-26 23:25 UTC Claude: #6 and #7 merged on Duff's OK; harness + Nexus CI green on main; first studio-audit run succeeded (all public repos cloned). T-001, T-009, T-018 marked done.
 - 2026-11-26 Claude: audit of all studio repos + H1 foundation branch (this file).

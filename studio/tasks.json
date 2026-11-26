@@ -7,7 +7,7 @@
       "repo": "AI-nexus",
       "milestone": "H1",
       "priority": "P0",
-      "status": "review",
+      "status": "done",
       "needs": [
         "shell",
         "git-push"
@@ -16,7 +16,9 @@
       "done_when": [
         "foundation/nexus-specs merged into main",
         "'Nexus CI' (typecheck, lint, 19 tests, build, smoke) green on main"
-      ]
+      ],
+      "evidence": "https://github.com/duffpowell-commits/AI-nexus/pull/6 (merged 3a3c605; Nexus CI green on main)",
+      "approved_by": "Duff, decision card 'Merge both', 2026-11-26 23:22 UTC"
     },
     {
       "id": "T-001",
@@ -24,7 +26,7 @@
       "repo": "AI-nexus",
       "milestone": "H1",
       "priority": "P0",
-      "status": "review",
+      "status": "done",
       "needs": [
         "shell",
         "git-push"
@@ -37,7 +39,9 @@
       ],
       "depends_on": [
         "T-018"
-      ]
+      ],
+      "evidence": "https://github.com/duffpowell-commits/AI-nexus/pull/7 (merged 77dd22e; harness + Nexus CI green on main)",
+      "approved_by": "Duff, decision card 'Merge both', 2026-11-26 23:22 UTC"
     },
     {
       "id": "T-002",
@@ -181,7 +185,7 @@
       "repo": "AI-nexus",
       "milestone": "H1",
       "priority": "P1",
-      "status": "review",
+      "status": "done",
       "needs": [
         "shell",
         "git-push"
@@ -190,7 +194,8 @@
         ".github/workflows/studio_audit.yml runs on schedule + dispatch",
         "a real run's job summary shows the drift and security tables",
         "it uses no secrets and has contents: read only"
-      ]
+      ],
+      "evidence": "https://github.com/duffpowell-commits/AI-nexus/actions/runs/45910619051 (first real run, success, 2026-11-26)"
     },
     {
       "id": "T-010",
