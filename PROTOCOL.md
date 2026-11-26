@@ -69,7 +69,10 @@ A lease is just a branch named `lock/T-xxx` in AI-nexus. Creating a branch that 
 - **Claim:** create branch `lock/T-xxx` from `main` with the GitHub API ("create a reference"). If GitHub says
   "Reference already exists", someone holds it: stop. Then add a file `lease.json` on that branch with
   `{"task","agent","branch","claimed_at","expires_at"}` (UTC, `YYYY-MM-DDTHH:MM:SSZ`).
-- **Release:** delete the branch `lock/T-xxx`, only if `lease.json` there names you.
+- **Release:** delete the branch `lock/T-xxx`, only if `lease.json` there names you (or commit a new `lease.json`
+  on it with `"released": true` and `expires_at` = now, if you can't delete branches).
+- **Claim over a released/expired lease:** update `lease.json` on that branch only if it is still the version you read
+  (the contents API's `sha` check makes that a compare-and-swap).
 - If you can't do either, ask Duff to run the task through an AI that can (Claude or Codex).
 
 ## 7. Who gets which task (starting guesses, replaced by data)

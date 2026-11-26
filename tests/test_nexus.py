@@ -178,6 +178,17 @@ class Leases(unittest.TestCase):
         self.assertEqual(nexus.all_leases(), [])
         nexus.claim("T-001", "codex")  # free again
 
+    def test_release_works_where_ref_deletion_is_refused(self):
+        sh("git", "config", "receive.denyDeletes", "true", cwd=self.sb.bare)
+        nexus.claim("T-001", "claude", note="done for today")
+        self.assertTrue(nexus.release("T-001", "claude"))
+        self.assertEqual(nexus.all_leases(), [])          # released = not listed, not stale
+        self.assertIn("T-001", nexus.remote_locks())      # the ref stayed (delete refused)
+        nexus.claim("T-001", "codex")                     # and it is free to claim
+        self.assertEqual(nexus.all_leases()[0]["agent"], "codex")
+        with self.assertRaisesRegex(nexus.NexusError, "already leased by codex"):
+            nexus.claim("T-001", "claude")
+
     def test_takeover_only_when_expired(self):
         nexus.claim("T-001", "claude", minutes=60)
         with self.assertRaisesRegex(nexus.NexusError, "is live"):

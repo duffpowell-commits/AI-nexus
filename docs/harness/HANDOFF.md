@@ -29,6 +29,10 @@ For any AI or person picking up the harness. Update this file in every PR here. 
 
 ## Gotchas
 - Lease refs live on this repo's remote as branches `lock/T-xxx`. Don't delete one you don't hold.
+- `release` marks the lease released (a fast-forward commit), then tries to delete the ref. Claude cloud
+  sessions' git proxy refuses ref deletes (HTTP 403), so released refs can stay; they count as free.
+  Verified on GitHub 2026-11-26: claim, second claim refused, heartbeat, wrong-agent release refused,
+  release, re-claim by another agent, release. `lock/T-001` was left behind by that test (released, harmless).
 - `nexus.py` pushes lease refs with `--no-verify` (no code in them). The game repos' push guard is not involved.
 - `studio_audit.py` skips private repos unless `--include-private`; never commit a report made with that flag.
 - Game repos' Claude guard blocks force pushes; `takeover`/`release` use `--force-with-lease` on lease refs here only.

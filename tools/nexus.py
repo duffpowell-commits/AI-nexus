@@ -276,6 +276,9 @@ def claim(task, agent, minutes=DEFAULT_LEASE_MIN, branch=None, session=None, not
     if p.returncode != 0:
         held = remote_locks().get(task)
         who = read_lease(task, held) if held else {}
+        if who.get("expires_at") and parse_iso(who["expires_at"]) <= now():
+            # Released or expired lease still on the remote: take it with compare-and-swap.
+            return takeover(task, agent, minutes, session=session, branch=branch, note=note)[0]
         raise NexusError(f"{task} is already leased by {who.get('agent', '?')} until "
                          f"{who.get('expires_at', '?')} (push refused: {p.stderr.strip()[:120]})")
     return sha
@@ -305,21 +308,29 @@ def release(task, agent):
     cur = read_lease(task, held)
     if cur.get("agent") != agent:
         raise NexusError(f"{task} is leased by {cur.get('agent')}, not {agent}; not releasing")
-    p = _push(f":{LOCK_PREFIX}{task}", lease_expect=(LOCK_PREFIX + task, held))
+    # Release = expire now, as a fast-forward commit (works where ref deletion is not allowed,
+    # e.g. some sandbox git proxies). The ref stays; claim/takeover treat it as free.
+    done = dict(cur, expires_at=iso(now()), released=True, note=cur.get("note", ""))
+    sha = _lease_commit(done, parent=held)
+    p = _push(f"{sha}:{LOCK_PREFIX}{task}")
     if p.returncode != 0:
         raise NexusError(f"release refused, the lease changed: {p.stderr.strip()[:160]}")
+    # Tidy up: delete the ref if allowed (compare-and-swap on our own release commit). Best effort.
+    _push(f":{LOCK_PREFIX}{task}", lease_expect=(LOCK_PREFIX + task, sha))
     return True
 
 
-def takeover(task, agent, minutes=DEFAULT_LEASE_MIN, session=None):
+def takeover(task, agent, minutes=DEFAULT_LEASE_MIN, session=None, branch=None, note=None):
     held = remote_locks().get(task)
     if not held:
-        return claim(task, agent, minutes, session=session)
+        return claim(task, agent, minutes, session=session, branch=branch, note=note)
     cur = read_lease(task, held)
     if parse_iso(cur["expires_at"]) > now():
         raise NexusError(f"{task} is live: {cur['agent']} holds it until {cur['expires_at']}")
-    new = make_lease(task, agent, minutes, branch=cur.get("branch"), session=session,
-                     note=f"resumed from {cur['agent']} (expired {cur['expires_at']})")
+    how = "released" if cur.get("released") else f"expired {cur['expires_at']}"
+    inherited = None if cur.get("released") else cur.get("branch")  # resume their branch, unless they finished
+    new = make_lease(task, agent, minutes, branch=branch or inherited, session=session,
+                     note=note or f"resumed from {cur['agent']} ({how}); their last note: {cur.get('note', '')}")
     sha = _lease_commit(new, parent=held)
     # Compare-and-swap: only replaces the exact expired lease we read.
     p = _push(f"{sha}:{LOCK_PREFIX}{task}", lease_expect=(LOCK_PREFIX + task, held))
@@ -336,6 +347,8 @@ def all_leases():
         except (NexusError, json.JSONDecodeError):
             lease = {"task": task, "agent": "?", "expires_at": "1970-01-01T00:00:00Z"}
         lease["live"] = parse_iso(lease["expires_at"]) > now()
+        if lease.get("released"):
+            continue  # released leases are free; nothing to resume
         out.append(lease)
     return out
 
@@ -585,7 +598,7 @@ def main(argv=None):
             print(f"RELEASED {a.task}" if release(a.task, a.agent) else f"{a.task} had no lease")
             return 0
         if a.cmd == "takeover":
-            r = takeover(a.task, a.agent, a.minutes, a.session)
+            r = takeover(a.task, a.agent, a.minutes, a.session, a.branch, a.note)
             if isinstance(r, tuple):
                 prev = r[1]
                 print(f"TOOK OVER {a.task} from {prev['agent']}; resume branch: {prev.get('branch') or '(none recorded)'}")
