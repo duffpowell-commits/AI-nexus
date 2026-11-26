@@ -5,5 +5,6 @@
   "branch": "claude/harness-h1",
   "note": "real-remote test: second agent after release",
   "claimed_at": "2026-11-26T22:26:35Z",
-  "expires_at": "2026-11-26T22:27:35Z"
+  "expires_at": "2026-11-26T22:26:37Z",
+  "released": true
 }
