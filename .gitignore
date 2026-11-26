@@ -9,3 +9,5 @@ coverage/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+__pycache__/
+*.pyc

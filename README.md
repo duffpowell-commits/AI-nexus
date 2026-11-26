@@ -2,6 +2,26 @@
 
 Nexus is an Android-first multi-AI workspace with signed-in projects, persistent conversations, and streaming replies. GPT, Claude, Grok, and Gemini can stream through their official APIs when enabled for a provisioned owner. Without credentials, Nexus labels development responses as mock.
 
+## Studio harness (start here if you are an AI working on any studio repo)
+
+AI-nexus also runs the 3 Eyed Fox Studios harness: studio task queue, task leases (locks), AI capability
+registry, usage/cost and outcome ledgers, and a weekly studio-wide audit. Python standard library only.
+**Every AI starts at [PROTOCOL.md](PROTOCOL.md).**
+
+| Read | For |
+|---|---|
+| [PROTOCOL.md](PROTOCOL.md) | how any AI picks, locks, hands off and records work across the studio |
+| [docs/harness/AUDIT.md](docs/harness/AUDIT.md) | maturity score (20/60 on 2026-11-26), findings |
+| [docs/harness/ARCHITECTURE_MAP.md](docs/harness/ARCHITECTURE_MAP.md) | which repo owns what, dependency edges |
+| [docs/harness/BACKLOG.md](docs/harness/BACKLOG.md) | milestones H1-H4 with definitions of done |
+| [docs/harness/SECURITY.md](docs/harness/SECURITY.md) | dependency + security audit |
+| [docs/harness/HANDOFF.md](docs/harness/HANDOFF.md) | where the harness work stands, next steps |
+| `studio/`, `ledger/` | queue, capabilities, repos + finish order; usage and outcome ledgers |
+| `tools/nexus.py`, `tools/studio_audit.py` | the CLI and the studio scanner |
+
+Harness tests: `python3 -m unittest discover -s tests -v` -> `OK` (CI workflow `harness`). The app's own
+checks below (`npm test` etc.) are separate.
+
 ## Run locally
 
 Use Node.js 22.13 or newer and npm. Run these commands from the repository root in Bash. The account password is read from stdin, and the prompt keeps it out of shell history.

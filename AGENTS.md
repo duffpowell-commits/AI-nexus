@@ -1,6 +1,10 @@
 # Nexus Agent Development Rules
 
-Read README.md, docs/PRODUCT.md, and docs/ARCHITECTURE.md before changes.
+Read README.md, PROTOCOL.md (the studio-wide AI protocol), docs/harness/HANDOFF.md, and, for the
+planned PWA, docs/PRODUCT.md and docs/ARCHITECTURE.md before changes.
+
+Commands: `python3 -m unittest discover -s tests -v` (-> OK) and `python3 tools/nexus.py validate`
+(-> NEXUS VALID) before every push. Both run in CI (`harness` workflow).
 
 1. Inspect the actual repository and existing conventions before adding dependencies or files.
 2. Work on a dedicated feature branch; do not commit directly to main.
@@ -14,3 +18,5 @@ Read README.md, docs/PRODUCT.md, and docs/ARCHITECTURE.md before changes.
 10. Preserve accessibility: reduced motion, keyboard/screen-reader support, contrast, and scalable text.
 11. For each task report: status, branch, files changed, tests run and results, blockers, and PR link.
 12. If a required capability is unavailable, report it rather than silently substituting a mock.
+13. Never copy anything from a private repo into this public one (studio_audit.py skips private repos by default).
+14. Ledger files are append-only: add rows, never edit or delete old ones.
