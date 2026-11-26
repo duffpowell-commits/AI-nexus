@@ -1,0 +1,1 @@
+// outcome ledger: one JSON object per line, written when a task ends (pass | fail | abandoned | reverted).

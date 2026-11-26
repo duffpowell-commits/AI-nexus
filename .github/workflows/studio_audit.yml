@@ -1,0 +1,40 @@
+# Weekly studio audit: clones every PUBLIC repo in studio/repos.json (anonymous, read-only) and
+# reports rule drift vs godot-game-starter, missing gates, and workflow/secret findings.
+# Private repos are never cloned or reported here. No secrets used; nothing is pushed.
+name: studio-audit
+on:
+  schedule:
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone public studio repos (depth 1, LFS skipped)
+        run: |
+          mkdir -p ../scan
+          python3 - <<'PY' > ../scan/list.txt
+          import json
+          m = json.load(open("studio/repos.json"))
+          for r in m["repos"]:
+              if r["visibility"] == "public" and r["state"] != "empty" and r["name"] != "AI-nexus":
+                  print(r["name"])
+          PY
+          cd ../scan
+          while read -r name; do
+            GIT_LFS_SKIP_SMUDGE=1 git clone --quiet --depth 1 "https://github.com/duffpowell-commits/$name" "$name" \
+              || echo "::warning::could not clone $name"
+          done < list.txt
+          ln -s "$GITHUB_WORKSPACE" AI-nexus
+      - name: Audit
+        run: |
+          python3 tools/studio_audit.py --root ../scan --out studio-audit.md
+          cat studio-audit.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-audit
+          path: studio-audit.md

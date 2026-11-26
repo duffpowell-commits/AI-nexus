@@ -1,0 +1,40 @@
+{
+  "_doc": "Capability registry. A task's needs must be a subset of an agent's capabilities for nexus.py to offer it. Strengths are starting guesses (2026-11-26); ledger/outcomes.jsonl replaces guesses with data once an agent has 3+ recorded tasks.",
+  "capabilities": {
+    "shell": "runs commands in a sandbox (git, python, tests)",
+    "godot-headless": "can install and run Godot 4.7.2 headless: tools/test.sh, autoplay, Eyes",
+    "git-push": "pushes branches and opens PRs on Duff's repos",
+    "github-api": "reads/writes GitHub through an API connector without a shell",
+    "review": "can act as a fresh-context reviewer on a PR diff",
+    "image-gen": "generates images itself",
+    "art-direction": "writes art prompts and judges art against the style guide",
+    "web-research": "searches and reads the live web",
+    "long-context": "reads very large inputs in one pass (whole repos, long logs)",
+    "writing": "player-facing copy, store pages, marketing posts",
+    "artifact-publish": "publishes Claude artifacts (Foxboard live copy)",
+    "phone-only-ok": "Duff can run it from his Android phone"
+  },
+  "agents": [
+    {"id": "claude", "name": "Claude Code (cloud session)",
+     "capabilities": ["shell", "godot-headless", "git-push", "github-api", "review", "art-direction", "web-research", "long-context", "writing", "artifact-publish", "phone-only-ok"],
+     "strengths": "multi-file code + tests in Godot repos, running the real game headless, audits, Foxboard artifact"},
+    {"id": "codex", "name": "OpenAI Codex (cloud task)",
+     "capabilities": ["shell", "godot-headless", "git-push", "review", "phone-only-ok"],
+     "strengths": "well-scoped implementation tasks with a clear done_when; second-opinion reviews"},
+    {"id": "chatgpt", "name": "ChatGPT app",
+     "capabilities": ["github-api", "image-gen", "art-direction", "web-research", "writing", "review", "phone-only-ok"],
+     "strengths": "image generation, copy, research; reviews from a pasted diff or the GitHub connector"},
+    {"id": "grok", "name": "Grok",
+     "capabilities": ["image-gen", "art-direction", "review", "web-research", "writing", "phone-only-ok"],
+     "strengths": "art (grok_art/ pipelines in the game repos), fresh-eyes review of a PR diff"},
+    {"id": "gemini", "name": "Gemini app",
+     "capabilities": ["image-gen", "art-direction", "long-context", "web-research", "writing", "phone-only-ok"],
+     "strengths": "backgrounds/art runs (Drive folder pipeline), very long documents"},
+    {"id": "copilot", "name": "GitHub Copilot coding agent",
+     "capabilities": ["shell", "git-push", "review"],
+     "strengths": "small issue-sized fixes assigned from GitHub; not yet used in the studio"},
+    {"id": "duff", "name": "Duff (human)",
+     "capabilities": ["github-api", "review", "art-direction", "writing", "phone-only-ok"],
+     "strengths": "approvals (duff-ok, art OKs), phone playtests, merges where a repo needs him"}
+  ]
+}

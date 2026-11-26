@@ -1,10 +1,13 @@
 # Nexus Roadmap
 
+Harness track (git-native, runs today, no server): docs/harness/BACKLOG.md, milestones H1-H4.
+The PWA milestones below are still planned; they come after harness H2 + H3.
+
 ## Milestone 0: Foundation (in progress)
 - [x] Product specification
 - [x] Architecture proposal
 - [x] Agent rules
-- [ ] Review and merge foundation PR
+- [x] Review and merge foundation PR (#1, 2026-11-22)
 
 ## Milestone 1: Executable skeleton
 - [ ] React/TypeScript/Vite PWA scaffold

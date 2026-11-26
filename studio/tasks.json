@@ -1,0 +1,317 @@
+{
+  "_doc": "Studio task queue. One task = one branch = one lease (python3 tools/nexus.py claim T-xxx). Status changes land by PR. Per-repo QUEUE.md stays the source of truth for in-game work; tasks here are studio-level or cross-repo, or point at a repo's NOW item. done needs evidence (merged PR / run / release link). approval = what Duff must tap before it can be done.",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Merge the harness foundation PR (queue, leases, registry, ledgers, studio audit, protocol)",
+      "repo": "AI-nexus",
+      "milestone": "H1",
+      "priority": "P0",
+      "status": "review",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "approval": "AI-nexus AGENTS.md rule 7: merges need Duff's explicit OK",
+      "done_when": [
+        "PR merged to main",
+        "CI 'nexus' job green on main",
+        "python3 tools/nexus.py validate prints NEXUS VALID on main"
+      ]
+    },
+    {
+      "id": "T-002",
+      "title": "Copy the duff-ok label guard + rule_lock into Rush",
+      "repo": "Rush",
+      "milestone": "H2",
+      "priority": "P0",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "approval": "rule change: Duff adds duff-ok on the PR",
+      "done_when": [
+        "Rush has tools/rule_lock.py, tools/test_rule_lock.sh, .github/workflows/rule_lock.yml identical to the template",
+        "Rush guard.py identical to the template (has check_label)",
+        "tools/test_rule_lock.sh prints RULE LOCK PASS in Rush CI",
+        "studio audit shows Rush with 0 drift on those files"
+      ]
+    },
+    {
+      "id": "T-003",
+      "title": "Add .githooks/pre-push and the newer guard.py to duffquest and lethemoor",
+      "repo": "duffquest",
+      "milestone": "H2",
+      "priority": "P0",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "approval": "rule change: Duff adds duff-ok on each PR",
+      "done_when": [
+        "both repos have .githooks/pre-push identical to the template",
+        "tools/test_push_guard.sh prints PUSH GUARD PASS in each",
+        "studio audit shows 0 missing pre-push"
+      ]
+    },
+    {
+      "id": "T-004",
+      "title": "Re-sync standards/ + GROK_STANDARDS.md into every game repo (hunter, chaos, pocket-fight, Rush differ; duffquest, lethemoor have none)",
+      "repo": "godot-game-starter",
+      "milestone": "H2",
+      "priority": "P1",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "approval": "rule change: Duff adds duff-ok on each PR",
+      "done_when": [
+        "studio audit drift table shows 'same' for standards/ and GROK_STANDARDS.md in every game repo, or a dated reason the repo keeps its own",
+        "one PR per repo, each merged"
+      ]
+    },
+    {
+      "id": "T-005",
+      "title": "Add gitleaks secret scanning to every public repo that lacks it",
+      "repo": "godot-game-starter",
+      "milestone": "H2",
+      "priority": "P1",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "done_when": [
+        "gitleaks.yml (free, no license key needed for personal repos) runs on push + PR in template, Foxboard, chaos, hunter, Rush, pocket-fight",
+        "first run green or findings triaged in the PR"
+      ]
+    },
+    {
+      "id": "T-006",
+      "title": "Give the 8 workflows whose jobs have no permissions block the least they need (build.yml test jobs in chaos/duffquest/lethemoor, buffer_drafts.yml x5, duffquest mirror_gitlab.yml)",
+      "repo": "godot-game-starter",
+      "milestone": "H2",
+      "priority": "P1",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "done_when": [
+        "studio audit MEDIUM count = 0",
+        "each touched repo's build still green and still publishes the dev release",
+        "buffer drafts still post (it only needs contents: read)"
+      ]
+    },
+    {
+      "id": "T-007",
+      "title": "Point duffquest at one handoff: mark HANDOFF.md + docs/HANDOFF.md as pointers to spike_full3d/HANDOFF.md",
+      "repo": "duffquest",
+      "milestone": "H2",
+      "priority": "P2",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "done_when": [
+        "only one file in duffquest claims to be the current handoff",
+        "the other two are 3-line pointers",
+        "PR merged"
+      ]
+    },
+    {
+      "id": "T-008",
+      "owner": "duff",
+      "title": "Archive the empty duplicate repos nexus and Foxboard-forge",
+      "repo": "nexus",
+      "milestone": "H2",
+      "priority": "P2",
+      "status": "todo",
+      "needs": [
+        "github-api"
+      ],
+      "approval": "irreversible-ish: Duff taps Archive in GitHub Settings (agents never archive)",
+      "done_when": [
+        "both repos show Archived on GitHub",
+        "repos.json state updated"
+      ]
+    },
+    {
+      "id": "T-009",
+      "title": "Weekly studio audit report: drift + security across all public repos",
+      "repo": "AI-nexus",
+      "milestone": "H1",
+      "priority": "P1",
+      "status": "review",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "done_when": [
+        ".github/workflows/studio_audit.yml runs on schedule + dispatch",
+        "a real run's job summary shows the drift and security tables",
+        "it uses no secrets and has contents: read only"
+      ]
+    },
+    {
+      "id": "T-010",
+      "owner": "duff",
+      "title": "Separate GitHub identities per AI (machine users or a GitHub App) so authorship, fresh-eyes reviews and duff-ok are attributable",
+      "repo": "AI-nexus",
+      "milestone": "H3",
+      "priority": "P1",
+      "status": "todo",
+      "needs": [
+        "github-api"
+      ],
+      "approval": "Duff creates the accounts/app himself (needs his login; free)",
+      "done_when": [
+        "each coding AI pushes as its own identity",
+        "fresh_eyes.yml rejects a PASS review from the PR author",
+        "rule_lock.yml accepts duff-ok only when the label actor is Duff's login"
+      ]
+    },
+    {
+      "id": "T-011",
+      "title": "Visual regression: compare autoplay screenshots against the last main build and flag pixel diffs over a threshold",
+      "repo": "godot-game-starter",
+      "milestone": "H3",
+      "priority": "P2",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "godot-headless",
+        "git-push"
+      ],
+      "done_when": [
+        "tools/visual_diff.py (stdlib + Godot's own PNG export, no paid service) compares docs/renders/ to main's",
+        "CI posts a summary table with changed screens",
+        "seen failing once on a deliberately changed screen"
+      ]
+    },
+    {
+      "id": "T-012",
+      "title": "Failed-build triage: match CI log failures to known causes (stale .godot/imported, engine drift, test gate) and print the fix",
+      "repo": "AI-nexus",
+      "milestone": "H3",
+      "priority": "P2",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "done_when": [
+        "tools/ci_triage.py reads a log file and prints cause + fix for each known signature",
+        "unit tests use real failed-run logs from the game repos",
+        "unknown failures print 'no known cause' instead of guessing"
+      ]
+    },
+    {
+      "id": "T-013",
+      "title": "Record Duff's Nov 26 call ('pause all, continue on Rush') in the other game repos: chaos, hunter, duffquest and lethemoor docs still each read as the active game",
+      "repo": "AI-nexus",
+      "milestone": "H1",
+      "priority": "P1",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "done_when": [
+        "each paused repo's QUEUE.md (or STATUS.md) NOW opens with 'Paused (Duff, 2026-11-26): studio focus is Rush' and a link to the quote",
+        "chaos keeps its Dec 28 jam date visible so Duff can unpause it in time",
+        "one small docs PR per repo, merged"
+      ]
+    },
+    {
+      "id": "T-014",
+      "title": "Chaos jam build: submit to the itch jam by Dec 28 (paused by Duff's Nov 26 call; needs his unpause)",
+      "repo": "chaosisthemotheroforder",
+      "milestone": "jam",
+      "priority": "P1",
+      "status": "blocked",
+      "needs": [
+        "github-api"
+      ],
+      "done_when": [
+        "Duff says unpause or cut",
+        "if unpaused: itch submission live before 2026-12-28 per the repo's own jam plan"
+      ],
+      "owner": "duff"
+    },
+    {
+      "id": "T-015",
+      "title": "Log real usage: record each session's cost/minutes in ledger/usage.jsonl for two weeks, then review cost per passed task",
+      "repo": "AI-nexus",
+      "milestone": "H3",
+      "priority": "P2",
+      "status": "todo",
+      "needs": [
+        "github-api"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "done_when": [
+        "14 days of rows from at least 2 agents",
+        "nexus.py bench shows usd_per_pass for each",
+        "rows marked estimate are labeled as estimates in the review"
+      ]
+    },
+    {
+      "id": "T-016",
+      "title": "Rush M1: Duff's keep-or-park verdict on Dec 1 (one Friday service fun?)",
+      "repo": "Rush",
+      "milestone": "M1",
+      "priority": "P0",
+      "status": "todo",
+      "owner": "duff",
+      "needs": [
+        "phone-only-ok"
+      ],
+      "done_when": [
+        "Duff plays the dev APK",
+        "verdict logged in Rush QUEUE.md with the date",
+        "repos.json state updated (focus or parked)"
+      ]
+    },
+    {
+      "id": "T-017",
+      "title": "Foxboard Forge supply chain: pin stable-diffusion.cpp release + SHA-256 and pip versions; move send-to-game into its own job; pass matrix values via env",
+      "repo": "Foxboard",
+      "milestone": "H2",
+      "priority": "P1",
+      "status": "todo",
+      "needs": [
+        "shell",
+        "git-push"
+      ],
+      "done_when": [
+        "forge.yml downloads a fixed sd.cpp tag and checks its SHA-256",
+        "pip installs pinned versions",
+        "GAME_PUSH_TOKEN is only in a job that does not run the downloaded binary",
+        "one real Forge job renders and auto-sends after the change"
+      ],
+      "note": "Foxboard code goes through a PR + fresh-eyes review"
+    }
+  ]
+}
