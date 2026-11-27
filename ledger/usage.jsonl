@@ -1,1 +1,2 @@
 // usage ledger: one JSON object per line. source = invoice | api-response | app-meter | estimate. Only invoice rows are real cost; the rest are labeled as such in reports.
+{"actions_minutes": 19, "agent": "codex", "note": "Observed build-job wall time 19.18 minutes across Hunter runs 108, 109, 110, rounded to integer. Not billed minutes or actual monetary cost. No paid assets; model/token costs unavailable.", "source": "estimate", "task": "T-020", "ts": "2026-11-27T15:25:49Z"}
