@@ -38,5 +38,6 @@ For any AI or person picking up the harness. Update this file in every PR here. 
 - Game repos' Claude guard blocks force pushes; `takeover`/`release` use `--force-with-lease` on lease refs here only.
 
 ## Log (newest first)
+- 2026-11-27 ChatGPT: T-019, branch `chatgpt/harness-improvement-loop`. Added IMPROVEMENTS.md, read-only weekly scorecard and four focused unit tests (all passed locally against fetched Nexus module and ledgers). Both ledger files were comment-only: performance baseline unknown. Next: independent Claude review, full harness CI, Duff's merge approval if required; keep Rush as studio focus. Sunday ChatGPT audit is scheduled separately, recommendation-only. No game changes or live provider calls.
 - 2026-11-26 23:25 UTC Claude: #6 and #7 merged on Duff's OK; harness + Nexus CI green on main; first studio-audit run succeeded (all public repos cloned). T-001, T-009, T-018 marked done.
 - 2026-11-26 Claude: audit of all studio repos + H1 foundation branch (this file).
