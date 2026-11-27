@@ -359,6 +359,24 @@
         "Merged PR and first weekly audit record evidence or explicit unknowns"
       ],
       "note": "PR #10 merged on Duff's OK 2026-11-27 after Claude's independent review (https://github.com/duffpowell-commits/AI-nexus/pull/10#issuecomment-7213036105). Open item: the first Sunday audit records a weekly report with evidence or explicit unknowns. Do not duplicate T-015 data collection or the studio audit."
+    },
+    {
+      "id": "T-020",
+      "title": "Hunter Milestone 5: approved Cellar Casino and Gus Malloy pass",
+      "repo": "hunter",
+      "milestone": "M5",
+      "priority": "P1",
+      "status": "doing",
+      "needs": [
+        "shell",
+        "godot-headless",
+        "git-push"
+      ],
+      "done_when": [
+        "Seven approved items implemented in one PR",
+        "Rule tests, full autoplay, Android and web exports, engine screenshots, independent review and green CI",
+        "Merged to main and dev APK available"
+      ]
     }
   ]
 }
