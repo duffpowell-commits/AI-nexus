@@ -244,10 +244,21 @@ class Ledgers(unittest.TestCase):
         self.assertEqual((agent, v["usd"], v["rows"], v["estimated_rows"]), ("claude", 4.0, 2, 1))
         b = nexus.bench_rows()
         self.assertAlmostEqual(b["claude"]["pass_rate"], 2 / 3)
-        self.assertEqual(b["claude"]["usd_per_pass"], 2.0)
+        self.assertEqual(b["claude"]["usd_per_pass"], 1.5)  # invoice only; the $1 estimate is not real cost
         self.assertEqual((b["claude"]["ci_first"], b["claude"]["ci_known"]), (2, 3))
         self.assertIsNone(b["codex"]["pass_rate"])  # 1 task is too few to rank
         self.assertEqual(nexus.validate(), [])
+
+    def test_validate_rejects_hand_written_bad_outcomes(self):
+        # Other AIs append ledger rows by hand; a typo must fail validate, not silently count as a non-pass.
+        with open(nexus.path("ledger/outcomes.jsonl"), "a", encoding="utf-8") as f:
+            f.write('{"ts":"2026-11-27T00:00:00Z","agent":"claude","task":"T-1","result":"PASS"}\n')
+            f.write('{"ts":"2026-11-27T00:00:00Z","agent":"claude","task":"T-1","result":"pass","ci_first_try":"yes"}\n')
+            f.write('{"ts":"2026-11-27T00:00:00Z","agent":"claude","task":"T-1","result":"pass","review_blockers":-1}\n')
+        errs = nexus.validate()
+        self.assertTrue(any("row 1" in e and "result" in e for e in errs), errs)
+        self.assertTrue(any("row 2" in e and "ci_first_try" in e for e in errs), errs)
+        self.assertTrue(any("row 3" in e and "review_blockers" in e for e in errs), errs)
 
     def test_rejects_unknown_agent_and_result(self):
         with self.assertRaises(nexus.NexusError):

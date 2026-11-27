@@ -337,6 +337,28 @@
         "one real Forge job renders and auto-sends after the change"
       ],
       "note": "Foxboard code goes through a PR + fresh-eyes review"
+    },
+    {
+      "id": "T-019",
+      "title": "Close the weekly harness improvement loop: register, evidence scorecard, tested rollback criteria",
+      "repo": "AI-nexus",
+      "milestone": "H3",
+      "priority": "P2",
+      "status": "doing",
+      "needs": [
+        "github-api",
+        "review"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "approval": "AI-nexus AGENTS.md rule 7: merges need Duff's explicit OK",
+      "done_when": [
+        "Four scorecard unit tests pass in harness CI",
+        "Independent reviewer checks the PR against PROTOCOL.md and AGENTS.md",
+        "Merged PR and first weekly audit record evidence or explicit unknowns"
+      ],
+      "note": "PR #10 merged on Duff's OK 2026-11-27 after Claude's independent review (https://github.com/duffpowell-commits/AI-nexus/pull/10#issuecomment-7213036105). Open item: the first Sunday audit records a weekly report with evidence or explicit unknowns. Do not duplicate T-015 data collection or the studio audit."
     }
   ]
 }

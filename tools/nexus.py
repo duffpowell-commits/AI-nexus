@@ -77,6 +77,9 @@ def append_jsonl(rel, row):
         f.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+OUTCOME_RESULTS = ("pass", "fail", "abandoned", "reverted")
+
+
 def now():
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 
@@ -177,6 +180,14 @@ def validate():
                         errs.append(f"{rel} row {i}: missing {k}")
                 if row.get("agent") and row["agent"] not in agent_ids:
                     errs.append(f"{rel} row {i}: unknown agent {row['agent']}")
+                if rel.endswith("outcomes.jsonl"):
+                    if "result" in row and row["result"] not in OUTCOME_RESULTS:
+                        errs.append(f"{rel} row {i}: result must be one of {', '.join(OUTCOME_RESULTS)}")
+                    if "ci_first_try" in row and not isinstance(row["ci_first_try"], bool):
+                        errs.append(f"{rel} row {i}: ci_first_try must be true or false")
+                    rb = row.get("review_blockers")
+                    if "review_blockers" in row and (isinstance(rb, bool) or not isinstance(rb, int) or rb < 0):
+                        errs.append(f"{rel} row {i}: review_blockers must be a whole number >= 0")
         except NexusError as e:
             errs.append(str(e))
     return errs
@@ -502,7 +513,7 @@ def usage_report():
 def outcome_add(agent, task, result, ci_first_try=None, review_blockers=None, minutes=None,
                 pr=None, note=None):
     agent_caps(agent)
-    if result not in ("pass", "fail", "abandoned", "reverted"):
+    if result not in OUTCOME_RESULTS:
         raise NexusError("result must be pass, fail, abandoned or reverted")
     row = {"ts": iso(now()), "agent": agent, "task": task, "result": result}
     for k, v in (("ci_first_try", ci_first_try), ("review_blockers", review_blockers),
@@ -526,8 +537,8 @@ def bench_rows():
             a["ci_known"] += 1
             a["ci_first"] += bool(r["ci_first_try"])
         a["blockers"] += int(r.get("review_blockers") or 0)
-    for r in usage:
-        if r["agent"] in out:
+    for r in usage:  # invoice rows only: estimates/meters overlap invoices and are not real cost
+        if r["agent"] in out and r.get("source") == "invoice":
             out[r["agent"]]["usd"] += float(r.get("usd") or 0)
     for a in out.values():
         a["pass_rate"] = a["pass"] / a["tasks"] if a["tasks"] >= 3 else None  # <3 = too few to rank

@@ -16,6 +16,7 @@ registry, usage/cost and outcome ledgers, and a weekly studio-wide audit. Python
 | [docs/harness/BACKLOG.md](docs/harness/BACKLOG.md) | milestones H1-H4 with definitions of done |
 | [docs/harness/SECURITY.md](docs/harness/SECURITY.md) | dependency + security audit |
 | [docs/harness/HANDOFF.md](docs/harness/HANDOFF.md) | where the harness work stands, next steps |
+| [docs/harness/IMPROVEMENTS.md](docs/harness/IMPROVEMENTS.md) | evidence-based weekly improvement loop, lessons, trials and scorecard |
 | `studio/`, `ledger/` | queue, capabilities, repos + finish order; usage and outcome ledgers |
 | `tools/nexus.py`, `tools/studio_audit.py` | the CLI and the studio scanner |
 
