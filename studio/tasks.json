@@ -337,6 +337,28 @@
         "one real Forge job renders and auto-sends after the change"
       ],
       "note": "Foxboard code goes through a PR + fresh-eyes review"
+    },
+    {
+      "id": "T-019",
+      "title": "Close the weekly harness improvement loop: register, evidence scorecard, tested rollback criteria",
+      "repo": "AI-nexus",
+      "milestone": "H3",
+      "priority": "P2",
+      "status": "review",
+      "needs": [
+        "github-api",
+        "review"
+      ],
+      "depends_on": [
+        "T-001"
+      ],
+      "approval": "AI-nexus AGENTS.md rule 7: merges need Duff's explicit OK",
+      "done_when": [
+        "Four scorecard unit tests pass in harness CI",
+        "Independent reviewer checks the PR against PROTOCOL.md and AGENTS.md",
+        "Merged PR and first weekly audit record evidence or explicit unknowns"
+      ],
+      "note": "User requested implementation 2026-11-27; branch chatgpt/harness-improvement-loop. Do not duplicate T-015 data collection or the studio audit."
     }
   ]
 }
