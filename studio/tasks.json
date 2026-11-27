@@ -366,7 +366,7 @@
       "repo": "hunter",
       "milestone": "M5",
       "priority": "P1",
-      "status": "doing",
+      "status": "done",
       "needs": [
         "shell",
         "godot-headless",
@@ -376,7 +376,8 @@
         "Seven approved items implemented in one PR",
         "Rule tests, full autoplay, Android and web exports, engine screenshots, independent review and green CI",
         "Merged to main and dev APK available"
-      ]
+      ],
+      "evidence": "https://github.com/duffpowell-commits/hunter/pull/39 (merged fab6895; build 110 green, signed APK and Pages live: https://github.com/duffpowell-commits/hunter/actions/runs/46023662594)"
     }
   ]
 }

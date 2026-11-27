@@ -229,6 +229,10 @@ class Leases(unittest.TestCase):
 class Ledgers(unittest.TestCase):
     def setUp(self):
         self.sb = Sandbox()
+        # These tests assert fixture row numbers and counts, independent of real appended ledgers.
+        # Sandbox is a temporary copy; the studio ledgers themselves remain append-only.
+        for ledger in ("usage", "outcomes"):
+            write(nexus.path(f"ledger/{ledger}.jsonl"), "")
 
     def tearDown(self):
         self.sb.close()
