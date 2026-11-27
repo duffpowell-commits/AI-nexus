@@ -1,7 +1,7 @@
 # 3 Eyed Fox Studios: shared AI operating protocol
 
 For every AI that works on the studio's repos: Claude, Codex, ChatGPT, Grok, Gemini, Copilot, and
-anyone else. Version 1, 2026-11-26. Owner: Duff.
+anyone else. Version 1.1, 2026-11-27. Owner: Duff.
 
 **Precedence.** A repo's own `CLAUDE.md` / `AGENTS.md` / `QUEUE.md` beat this file for that repo.
 This file covers what no single repo can: who works on what, how two AIs avoid the same task, and
@@ -103,7 +103,14 @@ On `main` (merged), CI green, the repo's PASS lines present, screenshots in `doc
 handoff updated, and the build in `dev` / live. In `tasks.json` a task is `done` only with an `evidence` link,
 and with `approved_by` if it has an `approval`. `nexus.py validate` (run in CI) rejects anything else.
 
-## 10. Commands
+## 10. Continuous improvement
+
+Use [docs/harness/IMPROVEMENTS.md](docs/harness/IMPROVEMENTS.md) for the weekly evidence-based
+improvement cycle, failure/correction register, regression acceptance tests and rollback criteria.
+Read-only metrics: `python3 tools/improvement_report.py`. Keep existing ledgers, approval gates,
+leases and repository-specific rules; the weekly audit recommends experiments, not automatic rule edits.
+
+## 11. Commands
 
 ```sh
 python3 tools/nexus.py validate                      # schema check, also runs in CI
