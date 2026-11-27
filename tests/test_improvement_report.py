@@ -36,6 +36,13 @@ class ImprovementReportTests(unittest.TestCase):
         self.assertEqual((a["ci_known"], a["ci_first_try_passes"]), (2, 1))
         self.assertEqual((a["review_known"], a["review_blockers"]), (2, 2))
 
+    def test_abandoned_and_reverted_are_not_passes(self):
+        base = {"ts": "2026-11-24T00:00:00Z", "agent": "grok"}
+        rows = [dict(base, result=r) for r in ("pass", "abandoned", "reverted")]
+        a = summarize(rows, [], self.end)["agents"]["grok"]
+        self.assertEqual(a["passes"], 1)
+        self.assertAlmostEqual(a["pass_rate"], 1 / 3)
+
     def test_cost_sources_stay_separate(self):
         base = {"ts": "2026-11-24T00:00:00Z", "agent": "chatgpt"}
         usage = [dict(base, source="invoice", usd=1),
