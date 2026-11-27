@@ -38,3 +38,7 @@ D. Review results on a phone, then propagate small compatible improvements to ot
 - Anthropic, Effective harnesses for long-running agents: https://www.anthropic.com/research/effective-harnesses-for-long-running-agents
 - OpenAI, Building Reliable Agents with Memory and Compaction: https://developers.openai.com/cookbook/examples/agents_sdk/building_reliable_agents_memory_compaction
 - Community discussion (anecdotal): https://www.reddit.com/r/ClaudeCode/comments/1xnee5q/how_are_you_handling_crosssession_memory_in_large/
+
+## Cold-start acceptance fixture: Fork
+
+Use the existing Fork repository as a read-only fixture: root `HANDOFF.md` is explicitly stale, and `STATUS.md` points to `spike_full3d/HANDOFF.md`. A fresh agent must independently select the current 3D handoff, distinguish the live 2D edition, identify the current tested SHA versus latest documentation commit, preserve the porch acceptance gate and design-only kitchen scope, and separate measured handset evidence from cloud runtime. It must recommend exactly one in-scope next action without user re-briefing. No automatic publication or gameplay changes in the exercise. Evaluate against fresh source files and repo rules, not this summary alone.
