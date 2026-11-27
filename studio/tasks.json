@@ -344,7 +344,7 @@
       "repo": "AI-nexus",
       "milestone": "H3",
       "priority": "P2",
-      "status": "review",
+      "status": "doing",
       "needs": [
         "github-api",
         "review"
@@ -358,7 +358,7 @@
         "Independent reviewer checks the PR against PROTOCOL.md and AGENTS.md",
         "Merged PR and first weekly audit record evidence or explicit unknowns"
       ],
-      "note": "User requested implementation 2026-11-27; branch chatgpt/harness-improvement-loop. Do not duplicate T-015 data collection or the studio audit."
+      "note": "PR #10 merged on Duff's OK 2026-11-27 after Claude's independent review (https://github.com/duffpowell-commits/AI-nexus/pull/10#issuecomment-7213036105). Open item: the first Sunday audit records a weekly report with evidence or explicit unknowns. Do not duplicate T-015 data collection or the studio audit."
     }
   ]
 }
